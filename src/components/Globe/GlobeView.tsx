@@ -6,11 +6,16 @@ import * as THREE from 'three';
 import { useMapStore } from '../../store/mapStore';
 import { useRadarFrames } from '../../hooks/useRadarFrames';
 import { getRadarTileUrl, getCloudTileUrl } from '../../services/radarApi';
+import { useWind } from '../../hooks/useWind';
+import { WindParticles } from './windParticles';
 
-// ── CartoDB 라이트 테마 타일 ──────────────────────────────────────────────────
-const getCartoLightTileUrl = (x: number, y: number, level: number): string => {
-  const s = ['a', 'b', 'c', 'd'][(x + y) % 4];
-  return `https://${s}.basemaps.cartocdn.com/light_all/${level}/${x}/${y}.png`;
+// 바람 레이어용 어두운 지구 텍스처 (key-free CDN) — 가산 블렌딩 입자가 빛나 보이도록
+const DARK_EARTH = 'https://unpkg.com/three-globe/example/img/earth-dark.jpg';
+
+// ── 기본 지도 타일: Esri World Light Gray (API 키 불필요) ───────────────────────
+// 이전 CartoDB light_all은 이제 API 키가 필요해져서 교체. 타일 순서는 {z}/{y}/{x}.
+const getBaseTileUrl = (x: number, y: number, level: number): string => {
+  return `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/${level}/${y}/${x}`;
 };
 
 // ── NASA GIBS 위성 타일 ──────────────────────────────────────────────────────
@@ -97,10 +102,14 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
 
   const isSatellite = activeLayer === 'satellite';
   const isRadar = activeLayer === 'radar';
+  const isWind = activeLayer === 'wind';
+
+  // 바람 레이어일 때만 전지구 바람 격자 로드
+  const { windGrid } = useWind(isWind);
 
   const tileEngineUrl = useMemo(() => {
     if (isSatellite) return getSatelliteTileUrl;
-    return getCartoLightTileUrl;
+    return getBaseTileUrl;
   }, [isSatellite]);
 
   const markerData: MarkerData[] = useMemo(
@@ -181,10 +190,24 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
     };
   }, [sceneReady, isRadar, currentFrame, host]);
 
+  // ── 바람 입자 흐름(nullschool 스타일): Three.js 씬에 입자 시스템 추가 ──────────
+  useEffect(() => {
+    if (!sceneReady || !globeRef.current || !isWind || !windGrid) return;
+    const scene = (globeRef.current as unknown as { scene: () => THREE.Scene }).scene?.();
+    if (!scene) return;
+
+    const particles = new WindParticles(scene, globeRef.current, windGrid);
+    particles.start();
+
+    return () => particles.dispose();
+  }, [sceneReady, isWind, windGrid]);
+
   const loadingLabel = isSatellite
     ? '🛰️ NASA 위성 이미지 로딩 중...'
     : isRadar
     ? '🌧️ 레이더 + 구름 로딩 중...'
+    : isWind
+    ? '🌬️ 전지구 바람 데이터 불러오는 중...'
     : '☁️ 구름 레이어 불러오는 중...';
 
   return (
@@ -194,9 +217,9 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
         width={dimensions.width}
         height={dimensions.height}
         backgroundColor="rgba(0,0,0,0)"
-        globeImageUrl={null}
+        globeImageUrl={isWind ? DARK_EARTH : null}
         bumpImageUrl={null}
-        globeTileEngineUrl={tileEngineUrl}
+        globeTileEngineUrl={isWind ? undefined : tileEngineUrl}
         showAtmosphere={true}
         atmosphereColor="#4fa8e8"
         atmosphereAltitude={0.18}
