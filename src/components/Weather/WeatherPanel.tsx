@@ -30,8 +30,8 @@ const WeatherPanel = () => {
       transition-transform duration-300 ease-out
       /* 모바일: 하단 시트 */
       bottom-0 left-0 right-0 max-h-[70vh] overflow-y-auto
-      /* 데스크톱: 좌측 사이드바 */
-      md:bottom-auto md:top-4 md:left-4 md:right-auto md:w-96 md:max-h-[calc(100vh-2rem)]
+      /* 데스크톱: 우측 사이드바 (검색 아래) */
+      md:bottom-auto md:top-20 md:right-4 md:left-auto md:w-96 md:max-h-[calc(100vh-6rem)]
     `}>
       {/* 드래그 핸들 (모바일) */}
       <div className="flex justify-center pt-2 md:hidden">

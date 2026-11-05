@@ -7,6 +7,7 @@ const layers: { type: LayerType; label: string; icon: string }[] = [
   { type: 'satellite', label: '위성', icon: '🛰️' },
   { type: 'radar', label: '레이더', icon: '📡' },
   { type: 'wind', label: '바람', icon: '🌬️' },
+  { type: 'storm', label: '태풍', icon: '🌀' },
 ];
 
 const LayerToggle = () => {

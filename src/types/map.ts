@@ -16,7 +16,7 @@ export interface GlobePointOfView {
 }
 
 // 활성 레이어 타입
-export type LayerType = 'base' | 'satellite' | 'radar' | 'wind';
+export type LayerType = 'base' | 'satellite' | 'radar' | 'wind' | 'storm';
 
 // 지오코딩 검색 결과
 export interface GeocodingResult {

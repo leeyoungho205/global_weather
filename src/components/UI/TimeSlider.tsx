@@ -1,14 +1,14 @@
-// 레이더 시간 슬라이더 컴포넌트
+// zoom.earth 스타일 하단 타임라인 (레이더 프레임 재생/탐색)
 import { useRadarFrames } from '../../hooks/useRadarFrames';
 
-// Unix 타임스탬프를 시간 문자열로 변환
-const formatTimestamp = (ts: number): string => {
-  const date = new Date(ts * 1000);
-  return date.toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
+// Unix 타임스탬프 → "11월 4일 13:20"
+const formatStamp = (ts: number): string => {
+  const d = new Date(ts * 1000);
+  return (
+    d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) +
+    ' ' +
+    d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+  );
 };
 
 const TimeSlider = () => {
@@ -18,72 +18,71 @@ const TimeSlider = () => {
     isPlaying,
     isLoading,
     setFrameIndex,
+    nextFrame,
+    prevFrame,
     togglePlay,
   } = useRadarFrames();
 
-  if (isLoading) {
+  if (isLoading || frames.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-slate-400 text-xs">
-        <div className="animate-spin h-3 w-3 border border-slate-400 border-t-transparent rounded-full" />
+      <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-900/80 backdrop-blur-xl border border-white/10 text-slate-300 text-xs">
+        <div className="animate-spin h-3.5 w-3.5 border-2 border-slate-400 border-t-transparent rounded-full" />
         레이더 로딩 중...
       </div>
     );
   }
 
-  if (frames.length === 0) return null;
-
-  const currentTime = frames[currentIndex]?.time
-    ? formatTimestamp(frames[currentIndex].time)
-    : '';
+  const current = frames[currentIndex]?.time ?? 0;
+  const latestIdx = frames.length - 1;
 
   return (
-    <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700/50 rounded-xl p-3 w-72">
-      {/* 헤더: 현재 시간 + 재생 버튼 */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-blue-400 text-xs font-medium">📡 레이더</span>
-          <span className="text-slate-300 text-xs">{currentTime}</span>
-        </div>
-        <button
-          onClick={togglePlay}
-          className="text-white hover:text-blue-400 transition-colors"
-          aria-label={isPlaying ? '정지' : '재생'}
-        >
-          {isPlaying ? (
-            // 정지 아이콘
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-          ) : (
-            // 재생 아이콘
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-            </svg>
-          )}
-        </button>
+    <div className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-2xl">
+      {/* 재생/정지 */}
+      <button
+        onClick={togglePlay}
+        className="h-9 w-9 flex items-center justify-center rounded-full text-white hover:bg-white/10 transition-colors"
+        aria-label={isPlaying ? '정지' : '재생'}
+      >
+        {isPlaying ? (
+          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 5h3v10H6zM11 5h3v10h-3z" /></svg>
+        ) : (
+          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" /></svg>
+        )}
+      </button>
+
+      {/* 이전 프레임 */}
+      <button onClick={prevFrame} className="h-8 w-8 flex items-center justify-center rounded-full text-slate-300 hover:bg-white/10" aria-label="이전">
+        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13 5l-6 5 6 5zM6 5h1.5v10H6z" /></svg>
+      </button>
+
+      {/* 현재 시각 + 슬라이더 */}
+      <div className="flex flex-col items-center px-2 min-w-[150px]">
+        <span className="text-white text-xs font-semibold tabular-nums">
+          {current ? formatStamp(current) : ''}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={latestIdx}
+          value={currentIndex}
+          onChange={(e) => setFrameIndex(Number(e.target.value))}
+          className="w-full h-1 mt-1 accent-blue-500 cursor-pointer"
+        />
       </div>
 
-      {/* 슬라이더 */}
-      <input
-        type="range"
-        min={0}
-        max={frames.length - 1}
-        value={currentIndex}
-        onChange={(e) => setFrameIndex(Number(e.target.value))}
-        className="w-full h-1.5 accent-blue-500 cursor-pointer"
-      />
+      {/* 다음 프레임 */}
+      <button onClick={nextFrame} className="h-8 w-8 flex items-center justify-center rounded-full text-slate-300 hover:bg-white/10" aria-label="다음">
+        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 5l6 5-6 5zM12.5 5H14v10h-1.5z" /></svg>
+      </button>
 
-      {/* 프레임 시간 표시 */}
-      <div className="flex justify-between mt-1">
-        <span className="text-xs text-slate-500">
-          {frames[0]?.time ? formatTimestamp(frames[0].time) : ''}
-        </span>
-        <span className="text-xs text-slate-500">
-          {frames[frames.length - 1]?.time
-            ? formatTimestamp(frames[frames.length - 1].time)
-            : ''}
-        </span>
-      </div>
+      {/* 최근 시간 */}
+      <button
+        onClick={() => setFrameIndex(latestIdx)}
+        className="h-8 px-3 flex items-center rounded-full text-blue-400 hover:bg-white/10 text-xs font-semibold"
+        aria-label="최근"
+      >
+        지금
+      </button>
     </div>
   );
 };

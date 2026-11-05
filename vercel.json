@@ -29,7 +29,11 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!assets|icons|favicon|refraction).*)",
+      "source": "/gdacs/:path*",
+      "destination": "/api/gdacs/:path*"
+    },
+    {
+      "source": "/((?!assets|icons|favicon|refraction|gdacs|api).*)",
       "destination": "/index.html"
     }
   ]

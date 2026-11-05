@@ -50,7 +50,7 @@ const GlobeControls = ({ globeRef }: Props) => {
     setPointOfView({ lat: 20, lng: 0, altitude: 2.5 });
   };
 
-  const btnClass = "w-10 h-10 flex items-center justify-center bg-slate-800/80 backdrop-blur-sm border border-slate-700/50 rounded-xl text-white hover:bg-slate-700/80 transition-colors";
+  const btnClass = "w-10 h-10 flex items-center justify-center bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-full text-white hover:bg-white/10 transition-colors shadow-lg";
 
   return (
     <div className="flex flex-col gap-2">
