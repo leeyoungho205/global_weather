@@ -49,8 +49,9 @@ const fetchGrid = async (
       let lng = lngMin + c * lngStep;
       if (lng > 180) lng -= 360; // 경도 정규화
       else if (lng < -180) lng += 360;
-      lats.push(lat);
-      lngs.push(lng);
+      // 소수 둘째 자리(약 1km)로 줄인다. 긴 소수는 URL이 9천 자를 넘겨 요청이 실패한다.
+      lats.push(Math.round(lat * 100) / 100);
+      lngs.push(Math.round(lng * 100) / 100);
     }
   }
 
