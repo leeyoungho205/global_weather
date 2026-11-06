@@ -18,27 +18,30 @@ const radarTileUrl = (host: string, path: string) => (z: number, x: number, y: n
 import { useWind } from '../../hooks/useWind';
 import { GpuWind } from './gpuWind';
 import { useStorms } from '../../hooks/useStorms';
-import { alertColor, type Storm } from '../../services/stormApi';
+import { stormColor, type Storm } from '../../services/stormApi';
 
 // 태풍 아이콘(회전하는 🌀) + 이름 + 최대풍속 DOM 요소 생성 (globe.gl htmlElement용)
+// 이름이 없는 발달 가능 시스템(인베스트)은 작고 흐리게 표시한다.
 const makeStormEl = (d: object): HTMLElement => {
   const s = d as Storm;
-  const color = alertColor(s.alert);
+  const color = stormColor(s.windKt);
   const el = document.createElement('div');
-  el.style.cssText =
-    'pointer-events:none; text-align:center; transform:translate(-50%,-120%); font-family:system-ui,sans-serif;';
+  el.style.cssText = `pointer-events:none; text-align:center; font-family:system-ui,sans-serif; opacity:${s.isInvest ? 0.75 : 1};`;
   const icon = document.createElement('div');
   icon.textContent = '🌀';
-  icon.style.cssText = `font-size:26px; line-height:1; filter:drop-shadow(0 0 7px ${color});`;
+  icon.style.cssText = `font-size:${s.isInvest ? 15 : 26}px; line-height:1; filter:drop-shadow(0 0 7px ${color});`;
   // 천천히 회전 (소용돌이 느낌)
   icon.animate(
     [{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }],
     { duration: 3500, iterations: Infinity }
   );
   const label = document.createElement('div');
+  // 구름 위에서도 읽히도록 어두운 배경의 이름표로 표시
+  label.style.cssText =
+    'margin-top:2px; padding:1px 6px; border-radius:6px; background:rgba(15,23,42,0.75); white-space:nowrap;';
   label.innerHTML =
-    `<div style="color:#fff;font-size:11px;font-weight:700;text-shadow:0 1px 3px #000;white-space:nowrap">${s.name}</div>` +
-    `<div style="color:${color};font-size:10px;font-weight:600;text-shadow:0 1px 2px #000">${s.windKmh} km/h</div>`;
+    `<div style="color:#fff;font-size:11px;font-weight:700">${s.name}</div>` +
+    `<div style="color:${color};font-size:10px;font-weight:600">${s.windKmh} km/h</div>`;
   el.appendChild(icon);
   el.appendChild(label);
   return el;
@@ -78,7 +81,7 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
   }, []);
   const cloudRef = useRef<ReturnType<typeof createCloudOverlay> | null>(null);
 
-  const { selectedLocation, setSelectedLocation, setPointOfView, baseLayer, showClouds, showRadar, showWind, showStorm } =
+  const { selectedLocation, setSelectedLocation, setPointOfView, baseLayer, showClouds, showRadar, showWind } =
     useMapStore();
   const { currentFrame, host } = useRadarFrames();
   const radarRef = useRef<ReturnType<typeof createMercatorOverlay> | null>(null);
@@ -110,7 +113,7 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 레이어/오버레이 변경 시 로딩 안내 초기화
-  const layerKey = `${baseLayer}|${showClouds}|${showRadar}|${showWind}|${showStorm}`;
+  const layerKey = `${baseLayer}|${showClouds}|${showRadar}|${showWind}`;
   useEffect(() => {
     setTilesReady(false);
     const timer = setTimeout(() => setTilesReady(true), 2500);
@@ -136,13 +139,12 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
   const isSatellite = baseLayer === 'satellite';
   const isRadar = showRadar;   // 강수량
   const isWind = showWind;     // 바람
-  const isStorm = showStorm;   // 태풍
   const isBase = showClouds;   // 구름 오버레이
 
   // 바람 레이어일 때만 바람 격자 로드(보이는 영역 기준 → 확대 시 국지 바람)
   const { windGrid } = useWind(isWind, view);
-  // 태풍 레이어일 때만 활성 태풍 로드
-  const { storms } = useStorms(isStorm);
+  // 활성 태풍은 레이어와 무관하게 항상 표시
+  const { storms } = useStorms();
 
   // 강수량(레이더) 국지 윈도우: 확대 시 보이는 영역만 고해상도 타일로.
   // 축소 상태면 null → 전지구 모드.
@@ -152,7 +154,16 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
 
   // 태풍 경로(paths)와 위치(rings) 데이터
   const stormTracks = useMemo(
-    () => storms.filter((s) => s.track.length > 1).map((s) => ({ coords: s.track, color: alertColor(s.alert) })),
+    () =>
+      storms.flatMap((s) => {
+        const color = stormColor(s.windKt);
+        const here = { lat: s.lat, lng: s.lng };
+        const paths = [];
+        // 지나온 경로=실선, 예보 경로=점선
+        if (s.track.length > 1) paths.push({ coords: s.track, color, dashed: false });
+        if (s.forecast.length > 0) paths.push({ coords: [here, ...s.forecast], color, dashed: true });
+        return paths;
+      }),
     [storms]
   );
 
@@ -272,8 +283,6 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
     ? '🌧️ 강수 레이더 불러오는 중...'
     : isWind
     ? '🌬️ 전지구 바람 데이터 불러오는 중...'
-    : isStorm
-    ? '🌀 전 세계 활성 태풍 불러오는 중...'
     : isBase
     ? '☁️ 실시간 구름 불러오는 중...'
     : '🗺️ 지도 불러오는 중...';
@@ -314,15 +323,17 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
         pointRadius={Math.min(0.35, Math.max(0.035, povAltitude * 0.12))}
         pointResolution={16}
         // ── 태풍 레이어: 위치 펄스(rings) + 이동 경로(paths) + 아이콘/이름(html) ──
-        ringsData={isStorm ? storms : []}
+        ringsData={storms.filter((s) => !s.isInvest)}
         ringLat={(d: object) => (d as Storm).lat}
         ringLng={(d: object) => (d as Storm).lng}
-        ringColor={(d: object) => () => alertColor((d as Storm).alert)}
+        ringColor={(d: object) => () => stormColor((d as Storm).windKt)}
         ringMaxRadius={5}
         ringPropagationSpeed={2}
         ringRepeatPeriod={700}
         ringAltitude={0.012}
-        pathsData={isStorm ? stormTracks : []}
+        pathsData={stormTracks}
+        pathDashLength={(d: object) => ((d as { dashed: boolean }).dashed ? 0.02 : 1)}
+        pathDashGap={(d: object) => ((d as { dashed: boolean }).dashed ? 0.015 : 0)}
         pathPoints={(d: object) => (d as { coords: { lat: number; lng: number }[] }).coords}
         pathPointLat={(p: object) => (p as { lat: number }).lat}
         pathPointLng={(p: object) => (p as { lng: number }).lng}
@@ -330,7 +341,7 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
         pathStroke={2}
         pathPointAlt={0.01}
         pathTransitionDuration={0}
-        htmlElementsData={isStorm ? storms : []}
+        htmlElementsData={storms}
         htmlLat={(d: object) => (d as Storm).lat}
         htmlLng={(d: object) => (d as Storm).lng}
         htmlAltitude={0.02}

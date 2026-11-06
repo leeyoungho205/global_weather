@@ -19,8 +19,7 @@ interface MapState {
   showClouds: boolean;   // 구름
   showRadar: boolean;    // 강수량(레이더)
   showWind: boolean;     // 바람
-  showStorm: boolean;    // 태풍
-  toggleOverlay: (key: 'showClouds' | 'showRadar' | 'showWind' | 'showStorm') => void;
+  toggleOverlay: (key: 'showClouds' | 'showRadar' | 'showWind') => void;
 
   // 레이더 타임스탬프 (Unix)
   radarTimestamp: number | null;
@@ -48,7 +47,6 @@ export const useMapStore = create<MapState>((set) => ({
   showClouds: true,
   showRadar: false,
   showWind: false,
-  showStorm: false,
   toggleOverlay: (key) => set((state) => ({ [key]: !state[key] })),
 
   // 레이더 시간

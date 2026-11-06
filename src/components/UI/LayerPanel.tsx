@@ -1,6 +1,6 @@
 // zoom.earth 스타일 좌측 레이어 패널
 // - '베이스 지도'(지도/위성) = 라디오(택1)
-// - '오버레이'(구름/강수량/바람/태풍) = 토글(독립적으로 조합 가능)
+// - '오버레이'(구름/강수량/바람) = 토글(독립적으로 조합 가능). 태풍은 항상 표시.
 import { useState } from 'react';
 import { useMapStore } from '../../store/mapStore';
 import type { BaseLayer } from '../../types/map';
@@ -18,7 +18,7 @@ const BASE: BaseItem[] = [
 ];
 
 // 오버레이 토글 선택지
-type OverlayKey = 'showClouds' | 'showRadar' | 'showWind' | 'showStorm';
+type OverlayKey = 'showClouds' | 'showRadar' | 'showWind';
 interface OverlayItem {
   key: OverlayKey;
   label: string;
@@ -29,19 +29,16 @@ const OVERLAY: OverlayItem[] = [
   { key: 'showClouds', label: '구름', icon: '☁️', desc: '실시간 전지구 구름' },
   { key: 'showRadar', label: '강수량', icon: '🌧️', desc: '강수 레이더' },
   { key: 'showWind', label: '바람', icon: '🌬️', desc: '전지구 바람 흐름' },
-  { key: 'showStorm', label: '태풍', icon: '🌀', desc: '활성 태풍 추적' },
 ];
 
 const LayerPanel = () => {
-  const { baseLayer, setBaseLayer, showClouds, showRadar, showWind, showStorm, toggleOverlay } =
-    useMapStore();
+  const { baseLayer, setBaseLayer, showClouds, showRadar, showWind, toggleOverlay } = useMapStore();
   const [open, setOpen] = useState(true);
 
   const overlayState: Record<OverlayKey, boolean> = {
     showClouds,
     showRadar,
     showWind,
-    showStorm,
   };
 
   // 베이스 레이어 라디오 행

@@ -9,22 +9,19 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  // 개발 서버에서 GDACS(CORS 미허용) 프록시 → /gdacs/* 를 GDACS로 전달.
-  // GDACS WAF가 Origin/Referer 붙은 요청을 거부하므로 해당 헤더를 제거하고 깨끗한 UA 사용.
+  // 개발 서버 프록시: NRL·NHC 태풍 데이터는 CORS를 허용하지 않는다.
+  // 운영에서는 vercel.json의 rewrites가 같은 역할을 한다.
   server: {
     proxy: {
-      '/gdacs': {
-        target: 'https://www.gdacs.org/gdacsapi',
+      '/tcdata/sector': {
+        target: 'https://science.nrlmry.navy.mil',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/gdacs/, ''),
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.removeHeader('origin');
-            proxyReq.removeHeader('referer');
-            proxyReq.removeHeader('cookie');
-            proxyReq.setHeader('user-agent', 'curl/8.0');
-          });
-        },
+        rewrite: () => '/geoips/tcdat/sectors/atcf_sector_file',
+      },
+      '/tcdata/btk': {
+        target: 'https://ftp.nhc.noaa.gov',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/tcdata\/btk/, '/atcf/btk'),
       },
     },
   },
