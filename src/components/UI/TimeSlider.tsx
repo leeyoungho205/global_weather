@@ -1,5 +1,8 @@
 // zoom.earth 스타일 하단 타임라인 (레이더 프레임 재생/탐색)
+import { useEffect, useRef, useState } from 'react';
 import { useRadarFrames } from '../../hooks/useRadarFrames';
+
+const PLAY_INTERVAL_MS = 800; // 재생 시 프레임 간격
 
 // Unix 타임스탬프 → "11월 4일 13:20"
 const formatStamp = (ts: number): string => {
@@ -12,16 +15,23 @@ const formatStamp = (ts: number): string => {
 };
 
 const TimeSlider = () => {
-  const {
-    frames,
-    currentIndex,
-    isPlaying,
-    isLoading,
-    setFrameIndex,
-    nextFrame,
-    prevFrame,
-    togglePlay,
-  } = useRadarFrames();
+  const { frames, currentIndex, isLoading, setFrameIndex, nextFrame, prevFrame, goLatest } =
+    useRadarFrames();
+
+  // 재생 상태는 타임라인에만 둔다 (강수량을 끄면 타임라인과 함께 재생도 멈춤)
+  const [isPlaying, setIsPlaying] = useState(false);
+  const togglePlay = () => setIsPlaying((v) => !v);
+
+  // 최신 nextFrame을 ref로 읽어, 프레임이 바뀔 때마다 타이머가 초기화되지 않게 한다
+  const nextRef = useRef(nextFrame);
+  useEffect(() => {
+    nextRef.current = nextFrame;
+  }, [nextFrame]);
+  useEffect(() => {
+    if (!isPlaying) return;
+    const timer = setInterval(() => nextRef.current(), PLAY_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [isPlaying]);
 
   if (isLoading || frames.length === 0) {
     return (
@@ -77,7 +87,10 @@ const TimeSlider = () => {
 
       {/* 최근 시간 */}
       <button
-        onClick={() => setFrameIndex(latestIdx)}
+        onClick={() => {
+          setIsPlaying(false);
+          goLatest();
+        }}
         className="h-8 px-3 flex items-center rounded-full text-blue-400 hover:bg-white/10 text-xs font-semibold"
         aria-label="최근"
       >

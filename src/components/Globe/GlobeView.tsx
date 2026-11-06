@@ -5,7 +5,7 @@ import type { GlobeInstance } from 'globe.gl';
 import * as THREE from 'three';
 import { useMapStore } from '../../store/mapStore';
 import { useRadarFrames } from '../../hooks/useRadarFrames';
-import { createCloudOverlay, createMercatorOverlay, stitchTiles, createDarkOverlay } from './overlays';
+import { createCloudOverlay, createMercatorOverlay, stitchTiles, stitchTileWindow, computeTileWindow, createDarkOverlay, geoCloudTileUrl, CLOUD_MAX_ZOOM, GLOBAL_CLOUD_WINDOW, type MercWindow } from './overlays';
 
 // 위성(VIIRS NOAA-20 트루컬러) 타일 URL — 오버레이 합성용
 const satTileUrl = (z: number, x: number, y: number): string => {
@@ -16,7 +16,7 @@ const satTileUrl = (z: number, x: number, y: number): string => {
 const radarTileUrl = (host: string, path: string) => (z: number, x: number, y: number): string =>
   `${host}${path}/256/${z}/${x}/${y}/2/1_1.png`;
 import { useWind } from '../../hooks/useWind';
-import { WindParticles } from './windParticles';
+import { GpuWind } from './gpuWind';
 import { useStorms } from '../../hooks/useStorms';
 import { alertColor, type Storm } from '../../services/stormApi';
 
@@ -64,11 +64,26 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
   const [tilesReady, setTilesReady] = useState(false);
   // Globe 씬 준비 완료 여부 (직접 씬 조작 전 확인용)
   const [sceneReady, setSceneReady] = useState(false);
+  // 현재 카메라 고도(줌) — 위치 마커 크기를 줌에 맞게 조절하는 데 사용
+  const [povAltitude, setPovAltitude] = useState(2.5);
+  // 보이는 영역(throttled) — 바람·강수량을 "지금 보는 곳"에 맞춰 고해상도로 로드
+  const [view, setView] = useState(() => useMapStore.getState().pointOfView);
+  const viewTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(viewTimer.current), []);
+  // 위성 구름 타일 새로고침 신호 (영상이 10분 간격으로 갱신됨)
+  const [cloudTick, setCloudTick] = useState(() => Math.floor(Date.now() / 600_000));
+  useEffect(() => {
+    const timer = setInterval(() => setCloudTick(Math.floor(Date.now() / 600_000)), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const cloudRef = useRef<ReturnType<typeof createCloudOverlay> | null>(null);
 
-  const { selectedLocation, setSelectedLocation, setPointOfView, activeLayer } =
+  const { selectedLocation, setSelectedLocation, setPointOfView, baseLayer, showClouds, showRadar, showWind, showStorm } =
     useMapStore();
   const { currentFrame, host } = useRadarFrames();
   const radarRef = useRef<ReturnType<typeof createMercatorOverlay> | null>(null);
+  const radarRequestSeq = useRef(0); // 레이더 텍스처 요청 순번
+  const radarShownSeq = useRef(0); // 화면에 표시된 가장 새 요청 순번
 
   useImperativeHandle(ref, () => globeRef.current);
 
@@ -94,12 +109,13 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 레이어 전환 시 로딩 안내 초기화
+  // 레이어/오버레이 변경 시 로딩 안내 초기화
+  const layerKey = `${baseLayer}|${showClouds}|${showRadar}|${showWind}|${showStorm}`;
   useEffect(() => {
     setTilesReady(false);
     const timer = setTimeout(() => setTilesReady(true), 2500);
     return () => clearTimeout(timer);
-  }, [activeLayer]);
+  }, [layerKey]);
 
   // 지구본 클릭 → 위치 선택
   const handleGlobeClick = useCallback(
@@ -116,16 +132,23 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
     [setSelectedLocation, setPointOfView]
   );
 
-  const isSatellite = activeLayer === 'satellite';
-  const isRadar = activeLayer === 'radar';
-  const isWind = activeLayer === 'wind';
-  const isStorm = activeLayer === 'storm';
-  const isBase = activeLayer === 'base'; // 지도 레이어(+실시간 구름 오버레이)
+  // 베이스는 라디오(지도/위성), 오버레이는 독립 토글 → 자유롭게 조합
+  const isSatellite = baseLayer === 'satellite';
+  const isRadar = showRadar;   // 강수량
+  const isWind = showWind;     // 바람
+  const isStorm = showStorm;   // 태풍
+  const isBase = showClouds;   // 구름 오버레이
 
-  // 바람 레이어일 때만 전지구 바람 격자 로드
-  const { windGrid } = useWind(isWind);
+  // 바람 레이어일 때만 바람 격자 로드(보이는 영역 기준 → 확대 시 국지 바람)
+  const { windGrid } = useWind(isWind, view);
   // 태풍 레이어일 때만 활성 태풍 로드
   const { storms } = useStorms(isStorm);
+
+  // 강수량(레이더) 국지 윈도우: 확대 시 보이는 영역만 고해상도 타일로.
+  // 축소 상태면 null → 전지구 모드.
+  const radarWindow = useMemo(() => computeTileWindow(view, 7), [view]); // RainViewer는 zoom 7까지
+  // 구름 윈도우: 정지궤도 위성 타일(확대 시 보이는 영역만 zoom 6까지, 축소 시 전지구 zoom 3)
+  const cloudWindow = useMemo(() => computeTileWindow(view, CLOUD_MAX_ZOOM) ?? GLOBAL_CLOUD_WINDOW, [view]);
 
   // 태풍 경로(paths)와 위치(rings) 데이터
   const stormTracks = useMemo(
@@ -145,13 +168,26 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
     const scene = (globeRef.current as unknown as { scene: () => THREE.Scene }).scene?.();
     if (!scene) return;
 
-    const { mesh, dispose } = createCloudOverlay(100.6);
-    scene.add(mesh);
+    const cloud = createCloudOverlay(100.6);
+    cloudRef.current = cloud;
+    scene.add(cloud.mesh);
     return () => {
-      scene.remove(mesh);
-      dispose();
+      scene.remove(cloud.mesh);
+      cloud.dispose();
+      cloudRef.current = null;
     };
   }, [sceneReady, isBase]);
+
+  // 위성 구름 타일 합성 (타일이 없는 지역은 셰이더가 전지구 이미지로 대체)
+  useEffect(() => {
+    if (!sceneReady || !isBase || !cloudRef.current) return;
+    let cancelled = false;
+    stitchTileWindow(geoCloudTileUrl(cloudTick), cloudWindow).then((tex) => {
+      if (cancelled || !cloudRef.current) { tex.dispose(); return; }
+      cloudRef.current.setLocal(tex, cloudWindow.window);
+    });
+    return () => { cancelled = true; };
+  }, [sceneReady, isBase, cloudWindow, cloudTick]);
 
   // ── 위성 오버레이 (위성 레이어): VIIRS 트루컬러 타일 합성 (불투명) ──
   useEffect(() => {
@@ -189,18 +225,27 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
     };
   }, [sceneReady, isRadar]);
 
-  // 레이더 현재 프레임이 바뀌면 텍스처 갱신 (zoom-2 16타일 합성)
+  // 레이더 텍스처 갱신: 축소=전지구(zoom-2), 확대=보이는 영역만 고해상도 윈도우.
+  // 프레임/호스트 변화 또는 보이는 영역(radarWindow) 변화 시 재합성.
   useEffect(() => {
     if (!isRadar || !currentFrame || !host || !radarRef.current) return;
-    let cancelled = false;
-    stitchTiles(radarTileUrl(host, currentFrame.path), 2).then((tex) => {
-      if (cancelled || !radarRef.current) { tex.dispose(); return; }
-      radarRef.current.setTexture(tex);
-    });
-    return () => { cancelled = true; };
-  }, [isRadar, currentFrame, host]);
+    const urlFn = radarTileUrl(host, currentFrame.path);
+    const seq = ++radarRequestSeq.current;
+    // 재생 중 다음 프레임으로 넘어가도 받은 프레임을 버리지 않고 순서대로 표시한다.
+    // (취소하면 첫 재생에서 그림이 멈춘다) 단, 더 새 요청이 이미 표시됐으면 건너뛴다.
+    const show = (tex: THREE.Texture, win: MercWindow | null) => {
+      if (seq < radarShownSeq.current || !radarRef.current) { tex.dispose(); return; }
+      radarShownSeq.current = seq;
+      radarRef.current.setTexture(tex, win);
+    };
+    if (radarWindow) {
+      stitchTileWindow(urlFn, radarWindow).then((tex) => show(tex, radarWindow.window));
+    } else {
+      stitchTiles(urlFn, 2).then((tex) => show(tex, null));
+    }
+  }, [isRadar, currentFrame, host, radarWindow]);
 
-  // ── 바람 레이어: 어두운 오버레이 + nullschool 입자 흐름 ──
+  // ── 바람 레이어: 어두운 오버레이 + GPU Fade 파티클 흐름 ──
   useEffect(() => {
     if (!sceneReady || !globeRef.current || !isWind) return;
     const scene = (globeRef.current as unknown as { scene: () => THREE.Scene }).scene?.();
@@ -208,27 +253,30 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
 
     const dark = createDarkOverlay(100.4);
     scene.add(dark.mesh);
-    let particles: WindParticles | null = null;
+    let wind: GpuWind | null = null;
     if (windGrid) {
-      particles = new WindParticles(scene, globeRef.current, windGrid);
-      particles.start();
+      wind = new GpuWind(scene, globeRef.current, windGrid);
+      wind.start();
     }
     return () => {
       scene.remove(dark.mesh);
       dark.dispose();
-      particles?.dispose();
+      wind?.dispose();
     };
   }, [sceneReady, isWind, windGrid]);
 
+  // 현재 켜진 베이스/오버레이에 맞춰 로딩 안내 문구 구성
   const loadingLabel = isSatellite
     ? '🛰️ NASA 위성 이미지 로딩 중...'
     : isRadar
-    ? '🌧️ 레이더 + 구름 로딩 중...'
+    ? '🌧️ 강수 레이더 불러오는 중...'
     : isWind
     ? '🌬️ 전지구 바람 데이터 불러오는 중...'
     : isStorm
     ? '🌀 전 세계 활성 태풍 불러오는 중...'
-    : '☁️ 구름 레이어 불러오는 중...';
+    : isBase
+    ? '☁️ 실시간 구름 불러오는 중...'
+    : '🗺️ 지도 불러오는 중...';
 
   return (
     <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse at center, #0d1b3e 0%, #050d1a 100%)' }}>
@@ -247,6 +295,14 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
         onZoom={(pov: { lat: number; lng: number; altitude: number }) => {
           // 인트로 애니메이션 중에는 위치를 저장하지 않음(엉뚱한 곳으로 튀는 것 방지)
           if (introShown) setPointOfView(pov);
+          // 고도가 의미있게 바뀔 때만 갱신(과도한 리렌더 방지) → 마커 크기 조절
+          setPovAltitude((prev) => (Math.abs(prev - pov.altitude) > 0.03 ? pov.altitude : prev));
+          // 카메라가 멈춘 뒤에만 데이터 영역 갱신 → 줌/이동 도중의 불필요한 타일·API 요청 방지
+          clearTimeout(viewTimer.current);
+          viewTimer.current = setTimeout(
+            () => setView({ lat: pov.lat, lng: pov.lng, altitude: pov.altitude }),
+            350
+          );
         }}
         animateIn={!introShown}
         pointsData={markerData}
@@ -254,8 +310,9 @@ const GlobeView = forwardRef<GlobeInstance | undefined>((_, ref) => {
         pointLng="lng"
         pointColor={() => '#f59e0b'}
         pointAltitude={0.01}
-        pointRadius={0.5}
-        pointResolution={12}
+        // 마커 크기를 카메라 고도에 비례 → 축소 시 적당히 보이고 확대 시 자연스럽게 작아짐
+        pointRadius={Math.min(0.35, Math.max(0.035, povAltitude * 0.12))}
+        pointResolution={16}
         // ── 태풍 레이어: 위치 펄스(rings) + 이동 경로(paths) + 아이콘/이름(html) ──
         ringsData={isStorm ? storms : []}
         ringLat={(d: object) => (d as Storm).lat}

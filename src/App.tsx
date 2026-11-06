@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
 
 const AppContent = () => {
   const globeRef = useRef<GlobeInstance | undefined>(undefined);
-  const { setSelectedLocation, setPointOfView, activeLayer } = useMapStore();
+  const { setSelectedLocation, setPointOfView, showRadar } = useMapStore();
   const { location, isLoading: geoLoading } = useGeolocation();
 
   // 앱 마운트 직후 스플래시 숨기기
@@ -68,8 +68,8 @@ const AppContent = () => {
         <SearchBar globeRef={globeRef} />
       </div>
 
-      {/* ── 하단 중앙: 레이더 타임라인 ── */}
-      {activeLayer === 'radar' && (
+      {/* ── 하단 중앙: 강수량(레이더) 타임라인 ── */}
+      {showRadar && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30">
           <TimeSlider />
         </div>

@@ -1,26 +1,18 @@
-// RainViewer 레이더 + 위성 구름 프레임 관리 훅
-import { useState, useEffect, useCallback } from 'react';
+// RainViewer 레이더 프레임 훅
+// 선택한 프레임은 스토어(radarTimestamp)에 저장 → 지구본과 타임라인이 같은 프레임을 공유한다.
+// 인덱스 대신 시각으로 저장하므로 목록이 갱신돼도 선택한 프레임이 밀리지 않는다.
+import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchRadarFrames, type RadarFrame, type SatelliteFrame } from '../services/radarApi';
+import { fetchRadarFrames, type RadarFrame } from '../services/radarApi';
+import { useMapStore } from '../store/mapStore';
 
-interface RadarState {
-  frames: RadarFrame[];           // 레이더 전체 프레임 목록
-  currentIndex: number;           // 현재 레이더 프레임 인덱스
-  host: string;                   // 타일 호스트 URL
-  isPlaying: boolean;             // 애니메이션 재생 중
-  latestCloudFrame: SatelliteFrame | null; // 최신 구름(적외선) 프레임
-}
+const EMPTY_FRAMES: RadarFrame[] = [];
 
 export const useRadarFrames = () => {
-  const [state, setState] = useState<RadarState>({
-    frames: [],
-    currentIndex: 0,
-    host: '',
-    isPlaying: false,
-    latestCloudFrame: null,
-  });
+  const radarTimestamp = useMapStore((s) => s.radarTimestamp);
+  const setRadarTimestamp = useMapStore((s) => s.setRadarTimestamp);
 
-  // 5분마다 레이더/구름 프레임 갱신
+  // 5분마다 레이더 프레임 갱신
   const { data, isLoading, error } = useQuery({
     queryKey: ['radar-frames'],
     queryFn: fetchRadarFrames,
@@ -28,79 +20,44 @@ export const useRadarFrames = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 데이터 로드 시 프레임 업데이트
-  useEffect(() => {
-    if (data) {
-      const allFrames = [
-        ...data.radar.past,
-        ...data.radar.nowcast.slice(0, 2), // 예측 2개 프레임만
-      ];
+  // 과거 프레임 + 예측 프레임(최대 2개)
+  const frames = useMemo(
+    () => (data ? [...data.radar.past, ...data.radar.nowcast.slice(0, 2)] : EMPTY_FRAMES),
+    [data]
+  );
+  const latestIndex = (data?.radar.past.length ?? 1) - 1; // 가장 최근 관측 프레임
 
-      // 가장 최신 적외선 구름 프레임 추출
-      const infraredFrames = data.satellite?.infrared ?? [];
-      const latestCloudFrame =
-        infraredFrames.length > 0
-          ? infraredFrames[infraredFrames.length - 1]
-          : null;
+  // 선택한 시각이 없거나 목록에서 사라졌으면 최신 관측 프레임을 보여 준다
+  const selectedIndex =
+    radarTimestamp === null ? -1 : frames.findIndex((f) => f.time === radarTimestamp);
+  const currentIndex = selectedIndex >= 0 ? selectedIndex : latestIndex;
 
-      setState(prev => ({
-        ...prev,
-        frames: allFrames,
-        host: data.host,
-        latestCloudFrame,
-        // 가장 최신 과거 프레임으로 초기화
-        currentIndex: data.radar.past.length - 1,
-      }));
-    }
-  }, [data]);
+  const setFrameIndex = useCallback(
+    (index: number) => setRadarTimestamp(frames[index]?.time ?? null),
+    [frames, setRadarTimestamp]
+  );
 
-  // 다음 프레임으로 이동
   const nextFrame = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      currentIndex: (prev.currentIndex + 1) % prev.frames.length,
-    }));
-  }, []);
+    if (frames.length > 0) setFrameIndex((currentIndex + 1) % frames.length);
+  }, [frames.length, currentIndex, setFrameIndex]);
 
-  // 이전 프레임으로 이동
   const prevFrame = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      currentIndex: (prev.currentIndex - 1 + prev.frames.length) % prev.frames.length,
-    }));
-  }, []);
+    if (frames.length > 0) setFrameIndex((currentIndex - 1 + frames.length) % frames.length);
+  }, [frames.length, currentIndex, setFrameIndex]);
 
-  // 특정 프레임 인덱스로 이동
-  const setFrameIndex = useCallback((index: number) => {
-    setState(prev => ({ ...prev, currentIndex: index }));
-  }, []);
-
-  // 애니메이션 재생/정지 토글
-  const togglePlay = useCallback(() => {
-    setState(prev => ({ ...prev, isPlaying: !prev.isPlaying }));
-  }, []);
-
-  // 자동 재생 처리 (600ms 간격)
-  useEffect(() => {
-    if (!state.isPlaying || state.frames.length === 0) return;
-    const timer = setInterval(nextFrame, 600);
-    return () => clearInterval(timer);
-  }, [state.isPlaying, state.frames.length, nextFrame]);
-
-  const currentFrame = state.frames[state.currentIndex] ?? null;
+  // '지금': 선택을 해제해 앞으로 들어오는 최신 프레임도 계속 따라간다
+  const goLatest = useCallback(() => setRadarTimestamp(null), [setRadarTimestamp]);
 
   return {
-    frames: state.frames,
-    currentIndex: state.currentIndex,
-    currentFrame,
-    host: state.host,
-    latestCloudFrame: state.latestCloudFrame, // 구름 오버레이용
-    isPlaying: state.isPlaying,
+    frames,
+    currentIndex,
+    currentFrame: frames[currentIndex] ?? null,
+    host: data?.host ?? '',
     isLoading,
     error: error?.message ?? null,
     nextFrame,
     prevFrame,
     setFrameIndex,
-    togglePlay,
+    goLatest,
   };
 };

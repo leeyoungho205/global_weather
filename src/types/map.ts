@@ -15,7 +15,10 @@ export interface GlobePointOfView {
   altitude: number;  // 카메라 고도 (지구 반지름 배수)
 }
 
-// 활성 레이어 타입
+// 베이스 레이어 타입 (지도 / 위성 중 택1 = 라디오)
+export type BaseLayer = 'map' | 'satellite';
+
+// (구) 활성 레이어 타입 — 하위 호환용. 현재는 오버레이 토글 방식 사용.
 export type LayerType = 'base' | 'satellite' | 'radar' | 'wind' | 'storm';
 
 // 지오코딩 검색 결과
