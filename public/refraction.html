@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>빛의 굴절 실험 - 인터랙티브 3D 학습</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0b1020;
+    color: #e6ecff;
+    font-family: -apple-system, "SF Pro Text", "Pretendard", "Noto Sans KR", sans-serif;
+  }
+  #scene {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  /* 좌상단 - 제목/설명 */
+  #title {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
+    background: rgba(15, 22, 45, 0.78);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(120, 160, 255, 0.18);
+    border-radius: 14px;
+    padding: 14px 18px;
+    max-width: 320px;
+    line-height: 1.4;
+  }
+  #title h1 {
+    font-size: 18px;
+    margin-bottom: 6px;
+    color: #ffd166;
+  }
+  #title p {
+    font-size: 13px;
+    color: #b6c2e2;
+  }
+
+  /* 우상단 - 각도 표시 */
+  #readout {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    background: rgba(15, 22, 45, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(120, 160, 255, 0.18);
+    border-radius: 14px;
+    padding: 14px 18px;
+    min-width: 230px;
+    line-height: 1.5;
+  }
+  #readout h2 {
+    font-size: 13px;
+    color: #8aa1d6;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .row { display: flex; justify-content: space-between; font-size: 14px; margin: 4px 0; }
+  .row .label { color: #b6c2e2; }
+  .row .val { font-weight: 600; font-feature-settings: "tnum"; }
+  .val.inc { color: #ff6b6b; }
+  .val.ref { color: #ffd166; }
+  .val.crit { color: #ff9f43; }
+  hr { border: none; border-top: 1px solid rgba(120, 160, 255, 0.15); margin: 8px 0; }
+  .formula {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #c7d4ff;
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  /* 하단 - 컨트롤 패널 */
+  #controls {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    background: rgba(15, 22, 45, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(120, 160, 255, 0.18);
+    border-radius: 14px;
+    padding: 14px 22px;
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 95vw;
+  }
+  .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
+  }
+  .slider-group .head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .slider-group .head .name { color: #b6c2e2; }
+  .slider-group .head .value {
+    color: #ffd166;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(90deg, #4361ee, #4cc9f0);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #ffd166;
+    border-radius: 50%;
+    border: 2px solid #0b1020;
+    cursor: grab;
+    box-shadow: 0 2px 8px rgba(255, 209, 102, 0.5);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #ffd166;
+    border-radius: 50%;
+    border: 2px solid #0b1020;
+    cursor: grab;
+  }
+
+  .btn {
+    background: rgba(67, 97, 238, 0.25);
+    border: 1px solid rgba(120, 160, 255, 0.35);
+    color: #e6ecff;
+    padding: 8px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: rgba(67, 97, 238, 0.5); }
+  .btn:active { transform: scale(0.97); }
+
+  /* 좌하단 - 범례 */
+  #legend {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    z-index: 10;
+    background: rgba(15, 22, 45, 0.78);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(120, 160, 255, 0.18);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  #legend h3 { font-size: 12px; color: #8aa1d6; margin-bottom: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 18px; height: 3px; border-radius: 2px; }
+
+  /* 모바일 */
+  @media (max-width: 720px) {
+    #title { max-width: 220px; padding: 10px 12px; }
+    #title h1 { font-size: 15px; }
+    #title p { font-size: 11px; }
+    #readout { min-width: 170px; padding: 10px 12px; }
+    #controls { padding: 10px 14px; gap: 14px; }
+    .slider-group { min-width: 160px; }
+    #legend { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="scene"></div>
+
+<div id="title">
+  <h1>💡 빛의 굴절 실험</h1>
+  <p>공기에서 물로 들어가는 빛을 관찰해보세요. 슬라이더로 입사각과 물의 양을 조절할 수 있어요.</p>
+</div>
+
+<div id="readout">
+  <h2>측정값</h2>
+  <div class="row"><span class="label">입사각 (θ₁)</span><span class="val inc" id="rIncident">45.0°</span></div>
+  <div class="row"><span class="label">굴절각 (θ₂)</span><span class="val ref" id="rRefraction">32.1°</span></div>
+  <div class="row"><span class="label">굴절률 차이</span><span class="val">공기 1.00 → 물 1.33</span></div>
+  <hr/>
+  <div class="row"><span class="label">임계각</span><span class="val crit">48.75°</span></div>
+  <div class="formula">n₁·sin θ₁ = n₂·sin θ₂</div>
+</div>
+
+<div id="controls">
+  <div class="slider-group">
+    <div class="head"><span class="name">🔦 빛의 입사각</span><span class="value" id="vAngle">45°</span></div>
+    <input type="range" id="sAngle" min="0" max="85" value="45" step="1" />
+  </div>
+  <div class="slider-group">
+    <div class="head"><span class="name">💧 물의 양</span><span class="value" id="vWater">60%</span></div>
+    <input type="range" id="sWater" min="10" max="95" value="60" step="1" />
+  </div>
+  <button class="btn" id="bReset">시점 초기화</button>
+</div>
+
+<div id="legend">
+  <h3>색상 안내</h3>
+  <div class="legend-item"><div class="swatch" style="background:#ff4d4d"></div><span>입사 광선</span></div>
+  <div class="legend-item"><div class="swatch" style="background:#ffd166"></div><span>굴절 광선</span></div>
+  <div class="legend-item"><div class="swatch" style="background:#ffffff; opacity:0.6"></div><span>법선 (수직선)</span></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================================
+// 물리 상수: Snell의 법칙 - n₁ sin θ₁ = n₂ sin θ₂
+// ============================================================
+const N_AIR = 1.00;          // 공기 굴절률
+const N_WATER = 1.33;        // 물 굴절률
+const CRITICAL_ANGLE = Math.asin(N_AIR / N_WATER) * 180 / Math.PI; // 약 48.75°
+
+// ============================================================
+// 수조 크기 정의 (단위: world unit)
+// ============================================================
+const TANK = {
+  width: 6,      // x축 가로
+  depth: 3.5,    // z축 깊이
+  height: 4,     // y축 높이
+  thickness: 0.05,
+  bottomY: -2,   // 수조 바닥 y좌표
+};
+
+// ============================================================
+// Three.js 기본 셋업
+// ============================================================
+const container = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x0b1020, 1);
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0b1020, 14, 28);
+
+const camera = new THREE.PerspectiveCamera(
+  45,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100
+);
+const INITIAL_CAM = new THREE.Vector3(7, 3, 9);
+camera.position.copy(INITIAL_CAM);
+camera.lookAt(0, 0, 0);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 5;
+controls.maxDistance = 20;
+controls.maxPolarAngle = Math.PI * 0.55; // 너무 아래에서 보지 못하게
+
+// ============================================================
+// 조명
+// ============================================================
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+keyLight.position.set(5, 8, 6);
+scene.add(keyLight);
+
+const rim = new THREE.DirectionalLight(0x88aaff, 0.4);
+rim.position.set(-6, 4, -3);
+scene.add(rim);
+
+// ============================================================
+// 바닥 그리드 (탁자 느낌)
+// ============================================================
+const grid = new THREE.GridHelper(20, 20, 0x335577, 0x223355);
+grid.position.y = TANK.bottomY - 0.01;
+scene.add(grid);
+
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(40, 40),
+  new THREE.MeshStandardMaterial({ color: 0x0d1530, roughness: 1 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = TANK.bottomY - 0.02;
+scene.add(floor);
+
+// ============================================================
+// 수조 (유리) - 네 옆면 + 바닥
+// ============================================================
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color: 0xaad8ff,
+  transmission: 0.92,
+  transparent: true,
+  opacity: 0.25,
+  roughness: 0.05,
+  metalness: 0,
+  thickness: 0.2,
+  side: THREE.DoubleSide,
+});
+
+const tankGroup = new THREE.Group();
+
+// 바닥
+const tankBottom = new THREE.Mesh(
+  new THREE.BoxGeometry(TANK.width, TANK.thickness, TANK.depth),
+  glassMat
+);
+tankBottom.position.y = TANK.bottomY;
+tankGroup.add(tankBottom);
+
+// 측면 4개
+const sideConfig = [
+  { w: TANK.width, h: TANK.height, d: TANK.thickness, x: 0, z:  TANK.depth/2 }, // 앞
+  { w: TANK.width, h: TANK.height, d: TANK.thickness, x: 0, z: -TANK.depth/2 }, // 뒤
+  { w: TANK.thickness, h: TANK.height, d: TANK.depth, x:  TANK.width/2, z: 0 }, // 오른쪽
+  { w: TANK.thickness, h: TANK.height, d: TANK.depth, x: -TANK.width/2, z: 0 }, // 왼쪽
+];
+sideConfig.forEach(c => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(c.w, c.h, c.d), glassMat);
+  m.position.set(c.x, TANK.bottomY + c.h / 2, c.z);
+  tankGroup.add(m);
+});
+scene.add(tankGroup);
+
+// ============================================================
+// 물 (수면 높이는 동적으로 변경)
+// ============================================================
+const waterMat = new THREE.MeshPhysicalMaterial({
+  color: 0x3eb6ff,
+  transmission: 0.6,
+  transparent: true,
+  opacity: 0.55,
+  roughness: 0.15,
+  metalness: 0,
+  thickness: 0.4,
+  side: THREE.DoubleSide,
+});
+const waterMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(
+    TANK.width  - TANK.thickness * 2,
+    1,
+    TANK.depth  - TANK.thickness * 2
+  ),
+  waterMat
+);
+scene.add(waterMesh);
+
+// 수면 하이라이트 (얇은 청록색 디스크 느낌)
+const surfaceHighlight = new THREE.Mesh(
+  new THREE.PlaneGeometry(
+    TANK.width  - TANK.thickness * 2,
+    TANK.depth  - TANK.thickness * 2
+  ),
+  new THREE.MeshBasicMaterial({
+    color: 0x66e0ff,
+    transparent: true,
+    opacity: 0.18,
+    side: THREE.DoubleSide,
+  })
+);
+surfaceHighlight.rotation.x = -Math.PI / 2;
+scene.add(surfaceHighlight);
+
+// ============================================================
+// 광선 (실린더로 표현) — 실시간으로 길이/방향 갱신
+// ============================================================
+function makeRayMesh(color, radius = 0.025) {
+  const geo = new THREE.CylinderGeometry(radius, radius, 1, 12);
+  geo.translate(0, 0.5, 0); // 원점에서 시작하도록
+  const mat = new THREE.MeshBasicMaterial({ color });
+  return new THREE.Mesh(geo, mat);
+}
+
+// 광선 끝에 화살촉(콘)
+function makeArrowHead(color, radius = 0.07, length = 0.18) {
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(radius, length, 16),
+    new THREE.MeshBasicMaterial({ color })
+  );
+  return cone;
+}
+
+const incidentRay = makeRayMesh(0xff4d4d, 0.03);
+const incidentHead = makeArrowHead(0xff4d4d);
+scene.add(incidentRay);
+scene.add(incidentHead);
+
+const refractedRay = makeRayMesh(0xffd166, 0.03);
+const refractedHead = makeArrowHead(0xffd166);
+scene.add(refractedRay);
+scene.add(refractedHead);
+
+// 광원 (작은 발광 구체)
+const lightSource = new THREE.Mesh(
+  new THREE.SphereGeometry(0.12, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0xff6666 })
+);
+scene.add(lightSource);
+const lightHalo = new THREE.Mesh(
+  new THREE.SphereGeometry(0.2, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0xff6666, transparent: true, opacity: 0.25 })
+);
+scene.add(lightHalo);
+
+// ============================================================
+// 법선 (점선) - 수면 hit 지점에서 위/아래로
+// ============================================================
+const normalMat = new THREE.LineDashedMaterial({
+  color: 0xffffff,
+  dashSize: 0.12,
+  gapSize: 0.1,
+  transparent: true,
+  opacity: 0.6,
+});
+const normalGeo = new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(0, -1.5, 0),
+  new THREE.Vector3(0,  1.5, 0),
+]);
+const normalLine = new THREE.Line(normalGeo, normalMat);
+normalLine.computeLineDistances();
+scene.add(normalLine);
+
+// ============================================================
+// 각도 표시 호 (TorusGeometry 일부분 이용)
+// ============================================================
+function makeAngleArc(color, radius = 0.55) {
+  // 얇은 토러스 (호) - 회전/길이는 동적으로 갱신
+  const geo = new THREE.RingGeometry(radius - 0.01, radius + 0.01, 48, 1, 0, Math.PI / 4);
+  const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+  return new THREE.Mesh(geo, mat);
+}
+const arcIncident = makeAngleArc(0xff4d4d, 0.55);
+const arcRefracted = makeAngleArc(0xffd166, 0.45);
+scene.add(arcIncident);
+scene.add(arcRefracted);
+
+// ============================================================
+// 각도 라벨 (CSS2D 대신 HTML overlay + 3D → 2D 투영)
+// ============================================================
+const labelLayer = document.createElement('div');
+labelLayer.style.cssText = 'position:fixed; inset:0; pointer-events:none; z-index:5;';
+document.body.appendChild(labelLayer);
+
+function makeLabel(color) {
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position:absolute;
+    transform: translate(-50%, -50%);
+    background: rgba(15,22,45,0.85);
+    border: 1px solid ${color};
+    color: ${color};
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+    white-space: nowrap;
+  `;
+  labelLayer.appendChild(el);
+  return el;
+}
+const labelIncident = makeLabel('#ff6b6b');
+const labelRefracted = makeLabel('#ffd166');
+
+function projectToScreen(vec3) {
+  const v = vec3.clone().project(camera);
+  return {
+    x: (v.x * 0.5 + 0.5) * window.innerWidth,
+    y: (-v.y * 0.5 + 0.5) * window.innerHeight,
+    visible: v.z < 1,
+  };
+}
+
+// ============================================================
+// 메인 상태
+// ============================================================
+const state = {
+  angleDeg: 45,       // 입사각 (도)
+  waterPct: 60,       // 수조에서 물이 차지하는 비율 (%)
+};
+
+// ============================================================
+// 입사/굴절 광선 갱신 함수
+// ============================================================
+// 광선이 박스(수조)의 5개 면(바닥+옆 4개) 중 어디에 부딪히는지 계산
+function intersectRayWithTankWalls(origin, direction) {
+  // 광선을 매우 길게 늘렸을 때 가장 먼저 만나는 면까지의 t
+  const xMin = -TANK.width/2  + TANK.thickness;
+  const xMax =  TANK.width/2  - TANK.thickness;
+  const zMin = -TANK.depth/2  + TANK.thickness;
+  const zMax =  TANK.depth/2  - TANK.thickness;
+  const yMin =  TANK.bottomY  + TANK.thickness;
+
+  let tBest = Infinity;
+  const checks = [
+    { axis: 'x', plane: xMin },
+    { axis: 'x', plane: xMax },
+    { axis: 'z', plane: zMin },
+    { axis: 'z', plane: zMax },
+    { axis: 'y', plane: yMin },
+  ];
+  for (const c of checks) {
+    const dirComp = direction[c.axis];
+    if (Math.abs(dirComp) < 1e-6) continue;
+    const t = (c.plane - origin[c.axis]) / dirComp;
+    if (t > 1e-4 && t < tBest) tBest = t;
+  }
+  if (!isFinite(tBest)) tBest = 4; // 안전망
+  return tBest;
+}
+
+// 실린더를 시작점과 끝점을 잇도록 배치
+function alignCylinder(mesh, from, to) {
+  const dir = new THREE.Vector3().subVectors(to, from);
+  const length = dir.length();
+  mesh.position.copy(from);
+  mesh.scale.set(1, length, 1);
+  // 기본 방향은 +Y. dir 방향으로 회전
+  const up = new THREE.Vector3(0, 1, 0);
+  mesh.quaternion.setFromUnitVectors(up, dir.clone().normalize());
+}
+
+// 화살촉을 끝점에서 살짝 안쪽으로 두고 방향 맞추기
+function alignArrowHead(cone, from, to) {
+  const dir = new THREE.Vector3().subVectors(to, from).normalize();
+  const pos = to.clone().sub(dir.clone().multiplyScalar(0.09)); // 살짝 안쪽으로
+  cone.position.copy(pos);
+  const up = new THREE.Vector3(0, 1, 0);
+  cone.quaternion.setFromUnitVectors(up, dir);
+}
+
+// 각도 호 배치
+// arcMesh는 RingGeometry(0~θ 호). 시작 각도 0이 +x 방향이므로 회전 필요.
+// 입사광선은 +y 위쪽에서 내려오므로, 호는 법선(+y)에서 빛 방향까지 그려야 함.
+function updateAngleArc(arcMesh, hitPoint, angleDeg, isIncident, beamOffsetX) {
+  // 새 RingGeometry로 교체 (각도가 바뀌므로)
+  const angleRad = Math.max(angleDeg, 0.5) * Math.PI / 180; // 너무 작으면 안 보이니 보정
+  arcMesh.geometry.dispose();
+  arcMesh.geometry = new THREE.RingGeometry(
+    isIncident ? 0.55 : 0.45,
+    isIncident ? 0.57 : 0.47,
+    48, 1, 0, angleRad
+  );
+  arcMesh.position.copy(hitPoint);
+
+  // RingGeometry는 XY 평면에 그려지고, 0도 방향은 +X.
+  // 우리는 광선이 XY 평면(z=0)에 있다고 가정 → ring을 XY 평면 그대로 두되,
+  // "법선(+Y)에서 빛 방향까지" 호가 그려지도록 회전.
+  // RingGeometry 시작 방향(+X)을 +Y(법선 위)로 돌리려면 z축 기준 +90도 회전.
+  // 그 다음, 빛 방향(좌우)에 따라 좌/우로 호가 펼쳐지도록 부호 결정.
+  arcMesh.rotation.set(0, 0, 0);
+  if (isIncident) {
+    if (beamOffsetX > 0) {
+      // 빛이 오른쪽에서 옴 → 호는 +Y에서 시계방향으로
+      arcMesh.rotation.z = Math.PI / 2 - angleRad;
+    } else {
+      arcMesh.rotation.z = Math.PI / 2;
+    }
+  } else {
+    // 굴절 광선은 -Y(아래) 쪽에서 빛 방향까지
+    if (beamOffsetX > 0) {
+      arcMesh.rotation.z = -Math.PI / 2;
+    } else {
+      arcMesh.rotation.z = -Math.PI / 2 - angleRad;
+      // 좌측 진행이면 시작점을 반대로
+      arcMesh.rotation.z = -Math.PI / 2 - angleRad;
+    }
+  }
+}
+
+function updateScene() {
+  // --- 1) 물 높이 계산 ---
+  const innerH = TANK.height - TANK.thickness; // 내부 사용 가능 높이
+  const waterH = Math.max(0.1, (state.waterPct / 100) * innerH);
+  const waterTopY = TANK.bottomY + TANK.thickness + waterH;
+
+  waterMesh.geometry.dispose();
+  waterMesh.geometry = new THREE.BoxGeometry(
+    TANK.width  - TANK.thickness * 2,
+    waterH,
+    TANK.depth  - TANK.thickness * 2
+  );
+  waterMesh.position.y = TANK.bottomY + TANK.thickness + waterH / 2;
+  surfaceHighlight.position.y = waterTopY + 0.001;
+
+  // --- 2) 광선 각도 / 방향 계산 ---
+  const angleRad = state.angleDeg * Math.PI / 180;
+  // 빛은 +X 쪽에서 내려오도록 (즉, hitPoint의 우측 위에서 들어옴)
+  const beamOffsetSign = +1;
+
+  // 입사광선 방향 (광원 → 수면): 단위벡터 (왼쪽 아래 + 살짝 z 변화 없이)
+  const incidentDir = new THREE.Vector3(
+    -Math.sin(angleRad) * beamOffsetSign,
+    -Math.cos(angleRad),
+    0
+  );
+  // 수면과 만나는 지점은 (0, waterTopY, 0)으로 고정
+  const hitPoint = new THREE.Vector3(0, waterTopY, 0);
+  // 광원 위치 = hitPoint - incidentDir * 거리
+  const beamLen = 4.0;
+  const lightPos = hitPoint.clone().sub(incidentDir.clone().multiplyScalar(beamLen));
+
+  // 광원 표시
+  lightSource.position.copy(lightPos);
+  lightHalo.position.copy(lightPos);
+
+  // 입사광선 실린더
+  alignCylinder(incidentRay, lightPos, hitPoint);
+  alignArrowHead(incidentHead, lightPos, hitPoint);
+
+  // --- 3) Snell 법칙으로 굴절각 계산 ---
+  const sinTheta2 = (N_AIR / N_WATER) * Math.sin(angleRad);
+  let refractAngleRad, refractDir, isTIR = false;
+  if (Math.abs(sinTheta2) > 1) {
+    // 공기→물에서는 절대 일어나지 않지만 안전망
+    isTIR = true;
+    refractAngleRad = angleRad;
+  } else {
+    refractAngleRad = Math.asin(sinTheta2);
+  }
+  refractDir = new THREE.Vector3(
+    -Math.sin(refractAngleRad) * beamOffsetSign,
+    -Math.cos(refractAngleRad),
+    0
+  );
+
+  // 굴절광선이 수조 벽에 닿는 지점까지의 길이
+  const t = intersectRayWithTankWalls(hitPoint, refractDir);
+  const refractEnd = hitPoint.clone().add(refractDir.clone().multiplyScalar(t));
+
+  alignCylinder(refractedRay, hitPoint, refractEnd);
+  alignArrowHead(refractedHead, hitPoint, refractEnd);
+
+  // --- 4) 법선 위치 갱신 ---
+  normalLine.position.set(hitPoint.x, hitPoint.y, hitPoint.z);
+
+  // --- 5) 각도 호 갱신 ---
+  updateAngleArc(arcIncident, hitPoint, state.angleDeg, true, beamOffsetSign);
+  updateAngleArc(arcRefracted, hitPoint, refractAngleRad * 180/Math.PI, false, beamOffsetSign);
+
+  // --- 6) 각도 라벨 갱신 (3D → 2D 투영) ---
+  // 라벨은 각도 호 중간쯤 위치
+  const labelIncidentPos3D = hitPoint.clone().add(new THREE.Vector3(
+    -Math.sin(angleRad / 2) * beamOffsetSign * 0.85,
+     Math.cos(angleRad / 2) * 0.85,
+     0
+  ));
+  const labelRefractedPos3D = hitPoint.clone().add(new THREE.Vector3(
+    -Math.sin(refractAngleRad / 2) * beamOffsetSign * 0.7,
+    -Math.cos(refractAngleRad / 2) * 0.7,
+     0
+  ));
+  const pi = projectToScreen(labelIncidentPos3D);
+  const pr = projectToScreen(labelRefractedPos3D);
+  labelIncident.style.left = `${pi.x}px`;
+  labelIncident.style.top  = `${pi.y}px`;
+  labelIncident.style.display = pi.visible ? 'block' : 'none';
+  labelIncident.textContent = `θ₁ = ${state.angleDeg.toFixed(1)}°`;
+
+  labelRefracted.style.left = `${pr.x}px`;
+  labelRefracted.style.top  = `${pr.y}px`;
+  labelRefracted.style.display = pr.visible ? 'block' : 'none';
+  labelRefracted.textContent = `θ₂ = ${(refractAngleRad * 180/Math.PI).toFixed(1)}°`;
+
+  // --- 7) HUD 텍스트 갱신 ---
+  document.getElementById('rIncident').textContent  = `${state.angleDeg.toFixed(1)}°`;
+  document.getElementById('rRefraction').textContent = `${(refractAngleRad * 180/Math.PI).toFixed(1)}°`;
+}
+
+// ============================================================
+// UI 이벤트
+// ============================================================
+const sAngle = document.getElementById('sAngle');
+const sWater = document.getElementById('sWater');
+const vAngle = document.getElementById('vAngle');
+const vWater = document.getElementById('vWater');
+const bReset = document.getElementById('bReset');
+
+sAngle.addEventListener('input', () => {
+  state.angleDeg = parseFloat(sAngle.value);
+  vAngle.textContent = `${state.angleDeg.toFixed(0)}°`;
+  updateScene();
+});
+sWater.addEventListener('input', () => {
+  state.waterPct = parseFloat(sWater.value);
+  vWater.textContent = `${state.waterPct.toFixed(0)}%`;
+  updateScene();
+});
+bReset.addEventListener('click', () => {
+  // 카메라 시점만 초기화
+  const start = camera.position.clone();
+  const end = INITIAL_CAM.clone();
+  const target = new THREE.Vector3(0, 0, 0);
+  let t0 = performance.now();
+  const dur = 600;
+  function anim() {
+    const k = Math.min(1, (performance.now() - t0) / dur);
+    const ease = 1 - Math.pow(1 - k, 3);
+    camera.position.lerpVectors(start, end, ease);
+    controls.target.lerp(target, ease);
+    controls.update();
+    if (k < 1) requestAnimationFrame(anim);
+  }
+  anim();
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  updateScene(); // 라벨 위치 재계산
+});
+
+// ============================================================
+// 렌더 루프
+// ============================================================
+function tick() {
+  controls.update();
+  // 카메라가 움직였을 수 있으니 라벨 위치도 매 프레임 갱신
+  // (가벼우니 매번 다시 그려도 OK)
+  updateScene_LabelsOnly();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+// 라벨 위치만 가볍게 다시 계산 (Snell 계산은 동일하니 결과 캐시 가능하지만,
+// 코드 단순성을 위해 updateScene 일부만 추출)
+function updateScene_LabelsOnly() {
+  const angleRad = state.angleDeg * Math.PI / 180;
+  const innerH = TANK.height - TANK.thickness;
+  const waterH = Math.max(0.1, (state.waterPct / 100) * innerH);
+  const waterTopY = TANK.bottomY + TANK.thickness + waterH;
+  const hitPoint = new THREE.Vector3(0, waterTopY, 0);
+  const beamOffsetSign = +1;
+  const sinTheta2 = (N_AIR / N_WATER) * Math.sin(angleRad);
+  const refractAngleRad = Math.asin(Math.min(1, Math.max(-1, sinTheta2)));
+
+  const labelIncidentPos3D = hitPoint.clone().add(new THREE.Vector3(
+    -Math.sin(angleRad / 2) * beamOffsetSign * 0.85,
+     Math.cos(angleRad / 2) * 0.85,
+     0
+  ));
+  const labelRefractedPos3D = hitPoint.clone().add(new THREE.Vector3(
+    -Math.sin(refractAngleRad / 2) * beamOffsetSign * 0.7,
+    -Math.cos(refractAngleRad / 2) * 0.7,
+     0
+  ));
+  const pi = projectToScreen(labelIncidentPos3D);
+  const pr = projectToScreen(labelRefractedPos3D);
+  labelIncident.style.left = `${pi.x}px`;
+  labelIncident.style.top  = `${pi.y}px`;
+  labelRefracted.style.left = `${pr.x}px`;
+  labelRefracted.style.top  = `${pr.y}px`;
+}
+
+// 초기 그리기
+updateScene();
+tick();
+</script>
+</body>
+</html>

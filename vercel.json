@@ -29,7 +29,15 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!assets|icons|favicon).*)",
+      "source": "/tcdata/sector",
+      "destination": "https://science.nrlmry.navy.mil/geoips/tcdat/sectors/atcf_sector_file"
+    },
+    {
+      "source": "/tcdata/btk/:file",
+      "destination": "https://ftp.nhc.noaa.gov/atcf/btk/:file"
+    },
+    {
+      "source": "/((?!assets|icons|favicon|refraction|tcdata).*)",
       "destination": "/index.html"
     }
   ]
