@@ -16,7 +16,21 @@ export interface GlobePointOfView {
 }
 
 // 활성 레이어 타입
-export type LayerType = 'base' | 'satellite' | 'radar';
+// satellite: 실제 위성 구름 / radar: 구름 + 레이더(비·눈) / temperature·wind: 기온·풍속 색 지도
+export type LayerType = 'satellite' | 'radar' | 'temperature' | 'wind';
+
+// 켜고 끌 수 있는 지도 오버레이 (Globe View 2D 앱과 같은 목록)
+export interface Overlays {
+  radar: boolean; // 레이더(비·눈) — RainViewer. 어느 지도 위에나 겹쳐 볼 수 있습니다
+  clouds: boolean; // 위성 구름
+  wind: boolean; // 바람 애니메이션 (파티클)
+  heat: boolean; // 고온 지점(산불 등)
+  storms: boolean; // 열대 저기압(태풍)
+  labels: boolean; // 도시 이름
+  lines: boolean; // 나라 경계선
+  graticule: boolean; // 위도/경도 격자
+  crosshair: boolean; // 화면 가운데 십자선
+}
 
 // 지오코딩 검색 결과
 export interface GeocodingResult {

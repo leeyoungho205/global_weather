@@ -1,0 +1,2100 @@
+/* ─────────────────────────────────────────────
+   디자인 토큰: 원본 화면에서 잰 색·크기 값을 한곳에 모아 둡니다
+   ───────────────────────────────────────────── */
+:root {
+  --font: 'Museo Sans Cyrl', 'Nunito Sans', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --text: #ffffff;
+  --text-dim: rgba(255, 255, 255, 0.6);
+  --text-soft: rgba(255, 255, 255, 0.85);
+  --page-bg: #000000;
+  --panel-bg: #1b232cb3; /* rgba(27,35,44,.7) 반투명 어두운 창 */
+  --panel-bg-light: rgba(27, 35, 44, 0.625);
+  --panel-solid: #272d35; /* 불투명 모드 */
+  --title-bg: #141a22;
+  --accent: #0a84ff;
+  --accent-hover: #1a8cff;
+  --accent-active: #0073e6;
+  --button-soft: #ffffff26; /* rgba(255,255,255,.15) */
+  --button-soft-hover: rgba(255, 255, 255, 0.2);
+  --purple: #7722ff;
+  --green: #00f060;
+  --edge: 0 0 1.5px 0.005px rgba(255, 255, 255, 0.65);
+  --shadow-dot: 0 0 6px rgba(0, 0, 0, 0.4);
+  --blur: blur(24px) saturate(240%);
+  --radius-small: 3px;
+  --radius-panel: 10px;
+  --radius-round: 20px;
+  --radius-dialog-button: 22px;
+  --radius-dot: 7.5px;
+  --pad-panel: 18px;
+  --gap-edge: 6px;
+  --content-width: 300px;
+  --text-label: 13px;
+  --text-small: 11px;
+  --text-body: 15px;
+  --text-dialog: 16px;
+  --label-shadow: 0 0 2px #000, 0 0 1.75px #000, 0 0 1.5px #000, 0 0 1px #000, 0 0 1px #000;
+  --footer-shadow: 0 0 1px rgba(0, 0, 0, 0.5), 1px 0 1px rgba(0, 0, 0, 0.5), -1px 0 1px rgba(0, 0, 0, 0.5),
+    0 1px 1px rgba(0, 0, 0, 0.5), 0 -1px 1px rgba(0, 0, 0, 0.5);
+}
+
+/* ── 기본 ─────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--page-bg);
+}
+
+body {
+  font: 14px var(--font);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  overscroll-behavior: none;
+}
+
+button,
+h1,
+h2,
+h3,
+h4,
+p,
+ul,
+dl,
+dd {
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+}
+
+button {
+  border: none;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button[disabled] {
+  cursor: default;
+}
+
+button[disabled] > span {
+  opacity: 0.25 !important;
+}
+
+h4 {
+  font-size: var(--text-small);
+  font-weight: 900;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+}
+
+main {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── 지도 ─────────────────────────────────── */
+#map {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  outline: none;
+  cursor: grab;
+  touch-action: none;
+}
+
+#map.dragging {
+  cursor: grabbing;
+}
+
+.ui-measure #map {
+  cursor: crosshair;
+}
+
+/* 지도 안쪽 묶음 */
+#map .viewport,
+#map .overlays {
+  position: absolute;
+  inset: 0;
+}
+
+#map .overlays {
+  pointer-events: none;
+}
+
+.map-canvas,
+.map-wind,
+.map-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.map-labels,
+.map-track,
+.map-storms {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 도시 이름: 점(anchor) 위에 글자 */
+.label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  color: var(--text);
+  text-decoration: none;
+  pointer-events: none;
+}
+
+.label .anchor {
+  position: absolute;
+  box-sizing: content-box;
+  left: -1px;
+  top: -1px;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 3px;
+  background-color: #fff;
+  border: 1px solid #000;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background-color 125ms;
+}
+
+.label .text {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin-top: -27.5px;
+  transform: translateX(-50%);
+  padding: 5px;
+  font-size: var(--text-label);
+  line-height: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  text-align: center;
+  text-shadow: var(--label-shadow);
+  pointer-events: auto;
+  cursor: pointer;
+  transition: color 125ms;
+}
+
+.label.country .text {
+  margin-top: -12.75px;
+  pointer-events: none;
+  cursor: default;
+}
+
+.no-touch .label:hover .text {
+  color: var(--text-soft);
+}
+
+.no-touch .label:hover .anchor {
+  background-color: var(--accent);
+}
+
+.ui-measure .label,
+.ui-measure .storm-dot {
+  pointer-events: none;
+}
+
+.ui-measure .label .text,
+.ui-measure .label .anchor {
+  pointer-events: none;
+}
+
+/* 태풍 표시 */
+.storm-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-round);
+  pointer-events: auto;
+}
+
+.storm-dot .dot {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+
+.storm-dot .ring {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: #fff;
+  box-shadow: var(--shadow-dot);
+}
+
+.storm-dot .icon {
+  position: absolute;
+  left: 12.5px;
+  top: 12.5px;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--radius-dot);
+  background-color: #5ebaff;
+  animation: storm-pulse 1s ease-in-out infinite alternate-reverse;
+}
+
+.storm-dot.rank-2 .icon,
+.storm-dot.rank-1 .icon {
+  background-color: #9aa3ad;
+}
+
+.storm-dot.rank0 .icon {
+  background-color: #5ebaff;
+}
+
+.storm-dot.cyclone .dot {
+  animation: spin-ccw 8s linear infinite;
+}
+
+.storm-dot.cyclone.south .dot {
+  animation-name: spin-cw;
+}
+
+.cyclone-icon {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.3));
+}
+
+.cyclone-icon path {
+  fill: #ff8a00;
+  stroke: #fff;
+  stroke-width: 1.6;
+}
+
+.cyclone-icon .eye {
+  fill: #fff;
+}
+
+.storm-dot.rank1 .cyclone-icon path {
+  fill: #ffd60a;
+}
+
+.storm-dot.rank3 .cyclone-icon path,
+.storm-dot.rank4 .cyclone-icon path,
+.storm-dot.rank5 .cyclone-icon path {
+  fill: #ff3b30;
+}
+
+.ui-playing .storm-dot.cyclone .dot {
+  animation-duration: 3s;
+}
+
+@keyframes spin-ccw {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes spin-cw {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes storm-pulse {
+  from {
+    transform: scale(0.8);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* 태풍 경로 위의 점 (예상 위치는 흰 테두리로 구분) */
+.track-point.forecast {
+  box-shadow: 0 0 0 1.5px #fff;
+}
+
+.track-point {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  pointer-events: auto;
+}
+
+/* 현재 위치 점 */
+.map-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background-color: var(--accent);
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgba(10, 132, 255, 0.3), var(--shadow-dot);
+  pointer-events: none;
+  display: none;
+}
+
+/* ── 떠 있는 버튼과 창의 공통 모양 ───────────── */
+.round,
+.group,
+.panel,
+button.title,
+.layers-dropdown {
+  position: absolute;
+  background-color: var(--panel-solid);
+  box-shadow: var(--edge);
+}
+
+.ui-blur .round,
+.ui-blur .group,
+.ui-blur .panel,
+.ui-blur button.title,
+.ui-blur .layers-dropdown {
+  background-color: var(--panel-bg-light);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+}
+
+.ui-blur-dark .round,
+.ui-blur-dark .group,
+.ui-blur-dark .panel,
+.ui-blur-dark button.title,
+.ui-blur-dark .layers-dropdown {
+  background-color: var(--panel-bg);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+
+.round {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-round);
+}
+
+.group {
+  width: 40px;
+  border-radius: var(--radius-round);
+  padding: 0;
+}
+
+.group button,
+.group .round {
+  position: relative;
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-round);
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.round .icon,
+.group button .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 8px 0 0 8px;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.no-touch .round:hover .icon,
+.no-touch .group button:hover .icon,
+.round:active .icon,
+.group button:active .icon {
+  opacity: 1;
+}
+
+.group.overlays button[data-state='off'] .icon {
+  opacity: 0.6;
+}
+
+.no-touch .group.overlays button[data-state='off']:hover .icon {
+  opacity: 0.85;
+}
+
+.group.overlays button[data-state='on'] .icon {
+  opacity: 1;
+  color: #fff;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));
+}
+
+.group.overlays button[data-state='on'] {
+  background-color: rgba(10, 132, 255, 0.35) !important;
+}
+
+.panel {
+  padding: var(--pad-panel);
+  border-radius: var(--radius-panel);
+  user-select: none;
+}
+
+/* 창의 닫기(X) 버튼: 25px 동그라미 */
+.panel button.close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 4px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel button.close span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  opacity: 0.85;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.panel button.close svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.4;
+}
+
+.no-touch .panel button.close:hover span {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* 창 안의 큰 버튼 (현재 위치 표시, 검색…) */
+.panel button.dialog {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  border-radius: var(--radius-dialog-button);
+  background-color: var(--button-soft);
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.panel button.dialog .text {
+  font-size: var(--text-dialog);
+  line-height: 45px;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.panel button.dialog .btn-icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+
+.no-touch .panel button.dialog:hover,
+.panel button.dialog:active {
+  background-color: var(--button-soft-hover);
+}
+
+.panel button.dialog.accent {
+  background-color: var(--accent);
+}
+
+.panel button.dialog.accent .text,
+.panel button.dialog.accent .btn-icon {
+  opacity: 1;
+}
+
+.no-touch .panel button.dialog.accent:hover {
+  background-color: var(--accent-hover);
+}
+
+.panel button.dialog.accent:active {
+  background-color: var(--accent-active);
+}
+
+/* ── 환영 창 ─────────────────────────────── */
+.panel.welcome {
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  top: 50%;
+  min-width: 220px;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  transform: translateY(-50%);
+  z-index: 5;
+  animation: dialog-in 275ms cubic-bezier(0.2, 1.5, 0.75, 1);
+}
+
+@keyframes dialog-in {
+  from {
+    transform: translateY(-50%) scale(0.95);
+    opacity: 0;
+  }
+}
+
+.title-logo {
+  position: relative;
+  width: 244px;
+  height: 94px;
+  margin: 0 auto;
+}
+
+.title-logo .logo-mark {
+  position: absolute;
+  left: 18px;
+  top: 4px;
+}
+
+.title-logo-text {
+  position: absolute;
+  left: 110px;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Nunito Sans', var(--font);
+  font-size: 35px;
+  line-height: 31px;
+  letter-spacing: 1.2px;
+  white-space: nowrap;
+}
+
+.title-logo-text strong {
+  font-weight: 900;
+}
+
+.title-logo-text span {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.panel.welcome p {
+  margin-bottom: 24px;
+  font-size: var(--text-dialog);
+  line-height: 21px;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.panel.welcome button.dialog {
+  margin-bottom: 12px;
+}
+
+.panel.welcome button.dialog:last-of-type {
+  margin-bottom: 0;
+}
+
+/* ── 오른쪽 버튼 위치 ───────────────────────── */
+.round.search {
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  top: calc(6px + env(safe-area-inset-top, 0px));
+}
+
+.round.settings {
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  top: calc(66px + env(safe-area-inset-top, 0px));
+}
+
+.round.about {
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  top: calc(112px + env(safe-area-inset-top, 0px));
+}
+
+.group.measure {
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  top: calc(158px + env(safe-area-inset-top, 0px));
+  height: 80px;
+}
+
+.round.geolocation {
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  top: calc(244px + env(safe-area-inset-top, 0px));
+}
+
+.round.geolocation.locating .icon {
+  animation: blink 0.75s ease-in-out infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.round.active,
+.group .round.active {
+  background-color: var(--accent) !important;
+}
+
+.group.overlays {
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+}
+
+.group.zoom {
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  height: 80px;
+}
+
+/* ── 왼쪽 위 로고 버튼 ─────────────────────── */
+button.title {
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  width: 124px;
+  height: 54px;
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+
+button.title .title-icon {
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 19px;
+  background-color: var(--title-bg);
+}
+
+/* 버튼보다 조금 넓게 눌리는 영역 */
+.group.zoom button.in::before,
+.round.search::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: -3px;
+  right: -6px;
+  bottom: 0;
+}
+
+.group.zoom button.out::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0;
+  right: -6px;
+  bottom: -8px;
+}
+
+button.title .title-text {
+  position: absolute;
+  left: 55px;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-family: 'Nunito Sans', var(--font);
+  font-size: 16px;
+  line-height: 15px;
+  letter-spacing: 0.6px;
+}
+
+button.title .title-text strong {
+  font-weight: 900;
+}
+
+button.title .title-text span {
+  font-weight: 500;
+}
+
+.panel.title-menu {
+  display: none;
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  top: calc(66px + env(safe-area-inset-top, 0px));
+  width: 170px;
+  padding: 12px 0;
+  z-index: 4;
+}
+
+.panel.title-menu h1 {
+  padding: 4px 18px 8px;
+  font-size: var(--text-small);
+  font-weight: 900;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* ── 메뉴 항목 (지도 종류, 오버레이, 로고 메뉴) ─ */
+.menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 8px 0 17px;
+  font-size: var(--text-body);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menu-item .menu-icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  margin-right: 10px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+
+.menu-item .text {
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+
+.no-touch .menu-item:hover .text,
+.no-touch .menu-item:hover .menu-icon {
+  opacity: 1;
+}
+
+/* 지도 종류 창 */
+.panel.layers {
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  top: calc(66px + env(safe-area-inset-top, 0px));
+  width: 135px;
+  max-height: calc(100% - 100px);
+  padding: 0 0 10px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, visibility 0.2s;
+}
+
+.ui-layers .panel.layers {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.panel.layers h4 {
+  position: relative;
+  padding: 18px 18px 9px;
+}
+
+.panel.layers .forecast h4 {
+  padding-top: 20px;
+}
+
+.panel.layers h4 .collapse {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+
+.panel.layers .menu-item.category {
+  margin: 0 0 0 9px;
+  width: calc(100% - 18px);
+  height: 40px;
+  padding-left: 8px;
+  border-radius: var(--radius-round);
+}
+
+.panel.layers .menu-item.category.selected {
+  width: auto;
+  padding-right: 13px;
+}
+
+.panel.layers .menu-item.category.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.panel.layers .menu-item.category.selected .text,
+.panel.layers .menu-item.category.selected .menu-icon {
+  opacity: 1;
+}
+
+.panel.layers .sub-items {
+  width: calc(100% - 12px);
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease-out;
+}
+
+.panel.layers .sub-items.open {
+  height: auto;
+}
+
+.panel.layers .sub-items.open::after {
+  content: '';
+  display: block;
+  height: 10px;
+}
+
+/* 위성 세부 항목은 창이 숨겨져도(투명) 글자는 그대로 둡니다 — 다시 나타날 때 바로 보이게 */
+.panel.layers .sub-items.satellite.open {
+  visibility: visible;
+}
+
+/* 환영 창 로고의 어두운 바탕 원 */
+.title-logo .logo-wrap {
+  position: absolute;
+  left: 18px;
+  top: 4px;
+  width: 76px;
+  height: 76px;
+  border-radius: 38px;
+  background-color: var(--title-bg);
+}
+
+.title-logo .logo-wrap .logo-mark {
+  position: static;
+  display: block;
+}
+
+/* 고온 지점 안내 창 */
+.panel.heat-consent {
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  top: 50%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  transform: translateY(-50%);
+  z-index: 6;
+}
+
+.panel.heat-consent h3 {
+  text-align: center;
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.panel.heat-consent p {
+  margin-top: 12px;
+  font-size: var(--text-body);
+  line-height: 21px;
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.panel.heat-consent button.dialog {
+  margin-top: 20px;
+  background-color: #ff1800;
+}
+
+.no-touch .panel.heat-consent button.dialog:hover {
+  background-color: #ff3e29;
+}
+
+.panel.heat-consent button.dialog .text {
+  opacity: 1;
+}
+
+.panel.heat-consent button.dialog.later {
+  margin-top: 12px;
+  background-color: var(--button-soft);
+}
+
+.panel.layers .menu-item.layer {
+  padding-left: 17px;
+  font-size: var(--text-body);
+}
+
+.panel.layers .menu-item.layer .menu-icon {
+  width: 20px;
+  margin-right: 18px;
+}
+
+.panel.layers .menu-item.layer .text {
+  opacity: 0.6;
+}
+
+.panel.layers .menu-item.layer.selected .text {
+  opacity: 1;
+}
+
+.panel.layers .category-wrap + .category-wrap {
+  margin-top: 0;
+}
+
+/* 중간 폭 화면: "위성 ▾" 버튼, 휴대폰: 파란 동그라미 버튼 */
+.layers-dropdown {
+  display: none;
+  left: calc(136px + env(safe-area-inset-left, 0px));
+  top: calc(13px + env(safe-area-inset-top, 0px));
+  height: 40px;
+  padding: 0 14px 0 8px;
+  border-radius: var(--radius-round);
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-body);
+}
+
+.layers-dropdown .menu-icon,
+.layers-dropdown .arrow {
+  display: inline-flex;
+  opacity: 0.85;
+}
+
+.round.layers-fab {
+  display: none;
+  right: calc(6px + env(safe-area-inset-right, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  background-color: var(--accent) !important;
+  background-image: linear-gradient(0deg, #0073e6, #1a8cff);
+  box-shadow: 0 3px 6px rgba(0, 43, 87, 0.35);
+}
+
+.round.layers-fab .icon {
+  margin: 14px 0 0 14px;
+  opacity: 1;
+}
+
+/* 지도 오버레이 목록 */
+.panel.overlays-panel {
+  right: calc(52px + env(safe-area-inset-right, 0px));
+  bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  width: 230px;
+  max-height: calc(100% - 140px);
+  padding: 18px 0 8px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  z-index: 4;
+}
+
+.panel.overlays-panel h4 {
+  padding: 0 18px 8px;
+}
+
+.menu-item.check input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.menu-item.check .text {
+  flex: 1;
+  opacity: 0.6;
+}
+
+.menu-item.check.on .text,
+.menu-item.check.on .menu-icon {
+  opacity: 1;
+}
+
+.menu-item.check.on .menu-icon {
+  color: var(--accent-hover);
+}
+
+kbd.hotkey {
+  display: none;
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  border-radius: var(--radius-small);
+  background-color: rgba(255, 255, 255, 0.2);
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 11.6px;
+  line-height: 18px;
+  text-align: center;
+  color: #fff;
+}
+
+.no-touch kbd.hotkey {
+  display: block;
+}
+
+/* ── 시계 ─────────────────────────────────── */
+.panel.clock {
+  left: 50%;
+  bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+  width: 230px;
+  height: 70px;
+  margin-left: -115px;
+  padding: 0;
+  border-radius: 17.5px;
+  font-size: var(--text-label);
+  text-align: center;
+}
+
+.panel.clock.hour12 {
+  width: 252px;
+  margin-left: -126px;
+}
+
+.panel.clock .text {
+  position: absolute;
+  top: 28px;
+  height: 15px;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 15px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.panel.clock button.play {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 54px;
+  height: 70px;
+}
+
+.panel.clock button.play span,
+.panel.clock button.recent span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  opacity: 0.85;
+}
+
+.panel.clock .date,
+.panel.clock .hour,
+.panel.clock .minute {
+  position: absolute;
+  top: 0;
+  height: 70px;
+}
+
+.panel.clock .date {
+  left: 54px;
+  width: 54px;
+}
+
+.panel.clock .date .text {
+  width: 54px;
+  font-weight: 500;
+  letter-spacing: -1px;
+}
+
+.panel.clock .date .text b {
+  font-weight: 700;
+}
+
+.panel.clock .hour {
+  left: 108px;
+  width: 40px;
+}
+
+.panel.clock .minute {
+  left: 148px;
+  width: 40px;
+}
+
+.panel.clock .hour .text,
+.panel.clock .minute .text {
+  left: 0;
+  width: 40px;
+}
+
+.panel.clock .text.colon {
+  left: 146px;
+  width: 4px;
+  margin-top: -1px;
+}
+
+.panel.clock .text.colon.blink {
+  animation: blink-colon 1s ease-in-out infinite;
+}
+
+@keyframes blink-colon {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.panel.clock .text.ampm {
+  left: 188px;
+  width: 22px;
+  top: 32px;
+  font-size: 9px;
+  line-height: 9px;
+  color: var(--text-soft);
+  text-align: left;
+}
+
+.panel.clock button.up,
+.panel.clock button.down {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 28px;
+  display: flex;
+  justify-content: center;
+}
+
+.panel.clock button.up {
+  top: 2px;
+  align-items: center;
+}
+
+.panel.clock button.down {
+  bottom: 2px;
+  align-items: center;
+}
+
+.panel.clock button.up span,
+.panel.clock button.down span {
+  display: flex;
+  opacity: 0.85;
+}
+
+.panel.clock button.recent {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 40px;
+  height: 70px;
+}
+
+/* ── 아래쪽 정보 ──────────────────────────── */
+.footer-coordinate {
+  position: absolute;
+  left: calc(8px + env(safe-area-inset-left, 0px));
+  margin-top: -8px;
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  color: #fff;
+  text-shadow: var(--footer-shadow);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.footer-coordinate .lat {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.footer-coordinate .lon {
+  display: inline-block;
+}
+
+.attribution {
+  position: absolute;
+  left: 160px;
+  right: 160px;
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  max-height: 28px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+  text-shadow: var(--footer-shadow);
+  pointer-events: none;
+}
+
+.scale-line {
+  position: absolute;
+  right: calc(7px + env(safe-area-inset-right, 0px));
+  bottom: calc(5px + env(safe-area-inset-bottom, 0px));
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.scale-line > div {
+  position: relative;
+  height: 16px;
+  line-height: 16px;
+  padding-right: 1px;
+  border-bottom: 3px solid #000;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: right;
+  text-shadow: var(--footer-shadow);
+}
+
+.scale-line > div::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  border-bottom: 1px solid #fff;
+}
+
+@media (min-width: 1132px) {
+  .footer-coordinate,
+  .attribution,
+  .scale-line > div {
+    font-size: 11px;
+  }
+}
+
+/* ── 도시 날씨 / 태풍 창 ───────────────────── */
+.panel.weather {
+  right: calc(50px + env(safe-area-inset-right, 0px));
+  top: calc(66px + env(safe-area-inset-top, 0px));
+  width: var(--content-width);
+  max-height: calc(100% - 100px);
+  padding: 20px 20px 8px;
+  overflow: hidden;
+  z-index: 3;
+}
+
+.panel.weather header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  height: 39px;
+  margin-top: -4px;
+}
+
+.panel.weather header .save {
+  width: 24px;
+  height: 24px;
+  margin: 0 6px 0 -3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+
+.panel.weather header .save.saved svg {
+  fill: #ffe065;
+  stroke: #ffe065;
+}
+
+.panel.weather header h2 {
+  flex: 1;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel.weather header .close {
+  top: -6px;
+  right: -14px;
+}
+
+.panel.weather table {
+  width: 100%;
+  border-spacing: 0;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.panel.weather th {
+  font-size: var(--text-small);
+  font-weight: 900;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 4px 0 6px;
+}
+
+.panel.weather tr.sub th {
+  padding: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.panel.weather th.num,
+.panel.weather td.num {
+  text-align: right;
+}
+
+.panel.weather th.bar-head {
+  text-align: center;
+}
+
+.panel.weather td {
+  height: 36px;
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+.panel.weather td.day {
+  width: 70px;
+}
+
+.panel.weather td.cond {
+  width: 40px;
+  text-align: center;
+}
+
+.panel.weather td.cond svg {
+  vertical-align: middle;
+}
+
+.panel.weather td.min {
+  width: 40px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.panel.weather td.max {
+  width: 36px;
+}
+
+.panel.weather td.bar {
+  padding: 0 8px 0 12px;
+}
+
+.panel.weather .track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+.panel.weather .range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 6px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #5ac8fa, #9ad7ff);
+}
+
+.panel.weather.storm dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 16px;
+  margin-top: 10px;
+  font-size: var(--text-body);
+}
+
+.panel.weather.storm dt {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.panel.weather.storm dd {
+  font-weight: 700;
+  text-align: right;
+}
+
+.panel .note {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-dim);
+}
+
+.mini-storm {
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  border-radius: 8px;
+  border: 3px solid #fff;
+  background-color: #5ebaff;
+}
+
+.mini-storm.rank1 {
+  background-color: #ffd60a;
+}
+
+.mini-storm.rank2 {
+  background-color: #ff8a00;
+}
+
+.mini-storm.rank3,
+.mini-storm.rank4,
+.mini-storm.rank5 {
+  background-color: #ff3b30;
+}
+
+.panel .note .link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-soft);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.panel .note.source {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.panel .note a {
+  color: var(--text-soft);
+  text-decoration: underline;
+}
+
+/* ── 오른쪽에 열리는 큰 창 (검색, 설정, 정보) ── */
+.panel.side {
+  right: calc(52px + env(safe-area-inset-right, 0px));
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  width: var(--content-width);
+  max-height: calc(100% - 12px);
+  display: flex;
+  flex-direction: column;
+  z-index: 6;
+  animation: side-in 0.2s ease-out;
+}
+
+@keyframes side-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+}
+
+.panel.side header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 30px;
+  margin-bottom: 14px;
+}
+
+.panel.side header h3 {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.panel.side header .header-icon {
+  display: inline-flex;
+  margin-right: 8px;
+  opacity: 0.85;
+}
+
+.panel.side header .close {
+  top: -8px;
+  right: -12px;
+}
+
+.panel.side .scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+  margin: 0 -18px -18px;
+  padding: 0 18px 18px;
+}
+
+.panel.side h4 {
+  margin: 16px 0 8px 4px;
+}
+
+.panel.side h4:first-child {
+  margin-top: 0;
+}
+
+.panel.search form {
+  position: relative;
+}
+
+.panel.search .input-icon {
+  position: absolute;
+  left: 14px;
+  top: 13px;
+  opacity: 0.6;
+}
+
+.panel.search input {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px 0 40px;
+  border: none;
+  border-radius: var(--radius-dialog-button);
+  background-color: var(--button-soft);
+  color: #fff;
+  font: inherit;
+  font-size: var(--text-dialog);
+  font-weight: 700;
+  outline: none;
+  user-select: text;
+}
+
+.panel.search input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.panel.search input:focus {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.panel.search .geolocation-search {
+  margin-top: 10px;
+  height: 40px;
+}
+
+.panel.search .geolocation-search .text {
+  font-size: var(--text-body);
+}
+
+.panel.search .results {
+  margin-top: 6px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.panel.search .results ul button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 42px;
+  padding: 0 10px;
+  border-radius: var(--radius-panel);
+  text-align: left;
+}
+
+.no-touch .panel.search .results ul button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.panel.search .result-name {
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+.panel.search .result-sub {
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.panel.search .empty {
+  padding: 16px 4px;
+  font-size: var(--text-body);
+  color: var(--text-dim);
+}
+
+.bubble {
+  border-radius: var(--radius-panel);
+  background-color: rgba(255, 255, 255, 0.08);
+  padding: 4px 12px;
+}
+
+.bar2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 46px;
+}
+
+.bar2 + .bar2 {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bar2 p {
+  font-size: var(--text-body);
+  font-weight: 700;
+}
+
+.segmented {
+  display: flex;
+  padding: 2px;
+  border-radius: 9px;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.segmented label {
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.segmented label.checked {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.panel.about p {
+  margin-top: 12px;
+  font-size: var(--text-body);
+  line-height: 21px;
+  color: var(--text-soft);
+}
+
+.about-logo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+}
+
+.title-logo-text.small {
+  position: static;
+  font-size: 22px;
+  line-height: 20px;
+}
+
+/* ── 거리 측정 창 ─────────────────────────── */
+.panel.measure {
+  left: 50%;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  width: var(--content-width);
+  margin-left: -150px;
+  z-index: 4;
+}
+
+.panel.measure p {
+  margin: 10px 0 14px;
+  font-size: var(--text-dialog);
+  line-height: 21px;
+}
+
+.panel.measure .actions {
+  display: flex;
+  gap: 8px;
+}
+
+.panel.measure .actions .text {
+  font-size: 14px;
+}
+
+/* ─────────────────────────────────────────────
+   화면 상태에 따라 보이기/숨기기
+   ───────────────────────────────────────────── */
+
+/* 환영 창이 떠 있을 때 숨기는 것들 */
+.ui-dialog-welcome .group.measure,
+.ui-dialog-welcome .round.geolocation,
+.ui-dialog-welcome button.title,
+.ui-dialog-welcome .panel.clock,
+.ui-dialog-welcome .layers-dropdown,
+.ui-dialog-welcome .round.layers-fab {
+  display: none !important;
+}
+
+.ui-dialog-welcome .panel.layers {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 측정 중에는 다른 창을 잠시 숨깁니다 */
+.ui-measure .panel.weather,
+.ui-measure .panel.clock {
+  display: none;
+}
+
+/* ── 중간 폭 화면 (680~1131px) ─────────────── */
+@media (max-width: 1131px) {
+  .layers-dropdown {
+    display: flex;
+  }
+
+  .ui-layers .layers-dropdown {
+    display: none;
+  }
+
+  .panel.weather {
+    max-height: calc(100% - 267px);
+    overflow-y: auto;
+  }
+}
+
+/* ── 휴대폰 (679px 이하) 또는 낮은 화면 ───── */
+@media (max-height: 569px), (max-width: 679px) {
+  body {
+    overflow: clip;
+  }
+
+  button.title {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-round);
+    background-color: var(--title-bg) !important;
+    box-shadow: none;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  button.title .title-icon {
+    left: 1px;
+    top: 1px;
+  }
+
+  button.title .title-text {
+    display: none;
+  }
+
+  .round.settings,
+  .round.about,
+  .group.measure,
+  .layers-dropdown {
+    display: none !important;
+  }
+
+  .round.geolocation {
+    top: calc(52px + env(safe-area-inset-top, 0px));
+  }
+
+  .round.layers-fab {
+    display: block;
+  }
+
+  .ui-layers .round.layers-fab {
+    width: 40px;
+    height: 40px;
+    bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    right: calc(6px + env(safe-area-inset-right, 0px));
+  }
+
+  .ui-layers .round.layers-fab .icon {
+    margin: 8px 0 0 8px;
+  }
+
+  .group.zoom {
+    display: none;
+  }
+
+  .group.overlays {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .panel.layers {
+    top: auto;
+    left: auto;
+    right: calc(52px + env(safe-area-inset-right, 0px));
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100% - 120px);
+    z-index: 4;
+  }
+
+  .panel.clock {
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .panel.weather {
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    right: auto;
+    width: 275px;
+    margin-left: -137.5px;
+    padding: 18px;
+    max-height: calc(100% - 110px);
+    overflow-y: auto;
+  }
+
+  .panel.side {
+    left: calc(6px + env(safe-area-inset-left, 0px));
+    right: calc(6px + env(safe-area-inset-right, 0px));
+    width: auto;
+    max-width: 420px;
+    margin: 0 auto;
+  }
+
+  .panel.overlays-panel {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    max-height: calc(100% - 150px);
+  }
+
+  .panel.measure {
+    left: 52px;
+    right: 52px;
+    width: auto;
+    margin-left: 0;
+  }
+
+  .panel.measure .actions .text {
+    font-size: 13px;
+  }
+
+  .footer-coordinate,
+  .scale-line {
+    display: none;
+  }
+
+  .attribution {
+    left: calc(6px + env(safe-area-inset-left, 0px));
+    right: calc(6px + env(safe-area-inset-right, 0px));
+    bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    height: 12px;
+    font-size: 9px;
+    line-height: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 휴대폰에서 환영 창이 떠 있으면 버튼을 모두 숨깁니다 */
+  .ui-dialog-welcome .group.overlays,
+  .ui-dialog-welcome .group.zoom,
+  .ui-dialog-welcome .round.search,
+  .ui-dialog-welcome .panel.layers {
+    display: none !important;
+  }
+
+  /* 큰 창이 열리면 겹치는 버튼은 숨깁니다 */
+  .ui-side .round.search,
+  .ui-side .round.geolocation,
+  .ui-side button.title,
+  .ui-side .group.overlays,
+  .ui-side .round.layers-fab,
+  .ui-side .panel.clock,
+  .ui-side .panel.weather {
+    display: none;
+  }
+}
+
+/* 아주 좁은 화면 */
+@media (max-width: 319px) {
+  .panel.welcome {
+    padding: 12px;
+  }
+
+  .panel.welcome .title-logo {
+    display: none;
+  }
+
+  .panel.welcome p {
+    margin: 2px 0 12px;
+    font-size: var(--text-body);
+    line-height: 20px;
+  }
+}
+
+@media (max-height: 489px) {
+  .panel.welcome .title-logo {
+    display: none;
+  }
+
+  .panel.welcome p {
+    margin: 2px 34px 12px 0;
+  }
+}
+
+/* 움직임을 줄이고 싶은 사용자 */
+@media (prefers-reduced-motion: reduce) {
+  .storm-dot .dot,
+  .storm-dot .icon,
+  .panel.welcome,
+  .panel.side {
+    animation: none !important;
+  }
+}
+
+.ui-title .panel.title-menu {
+  display: block;
+}
+
+/* 태풍 경로 색 설명 */
+.track-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-soft);
+}
+
+.track-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.track-legend i {
+  display: inline-block;
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.track-legend .tropical {
+  background-color: #ff8a00;
+}
+
+.track-legend .extratropical {
+  background-color: var(--purple);
+}
+
+.track-legend .remnant {
+  background-color: var(--green);
+}
+
+/* 예보 지도 색 막대 */
+.legend {
+  position: absolute;
+  left: 50%;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  width: 260px;
+  margin-left: -130px;
+  height: 16px;
+  border-radius: 8px;
+  box-shadow: var(--edge);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 8px;
+  text-shadow: var(--footer-shadow);
+}
+
+.legend.none,
+.ui-dialog-welcome .legend {
+  display: none;
+}
+
+@media (max-width: 679px) {
+  .legend {
+    top: auto;
+    bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* 휴대폰: 아래쪽에 숨겨 둔 패널 자리 (화면 높이만큼, 화면 밖 아래에 있어 보이지 않고 스크롤도 되지 않음) */
+.sheet-dock {
+  display: none;
+}
+
+@media (max-width: 679px) {
+  .sheet-dock {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 100%;
+    width: 1px;
+    height: 100%;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* 인터넷·서버 연결 안내 (화면 위쪽 가운데) */
+.network-notice {
+  position: absolute;
+  left: 50%;
+  top: calc(30px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 140px);
+  padding: 8px 14px;
+  border-radius: 18px;
+  background-color: rgba(20, 26, 34, 0.92);
+  box-shadow: var(--edge);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.network-notice button {
+  flex: none;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 12px;
+  background-color: var(--accent);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 679px) {
+  .network-notice {
+    top: auto;
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100% - 32px);
+    width: max-content;
+  }
+}
+
+/* 검색 창의 '저장한 장소' 별 */
+.saved-star {
+  display: inline-flex;
+  flex: none;
+  margin-right: 8px;
+}
+
+.saved-star svg {
+  fill: #ffe065;
+  stroke: #ffe065;
+}

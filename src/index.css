@@ -1,34 +1,137 @@
 @import "tailwindcss";
 
-/* 전역 스타일 */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* 기본 스타일과 버튼·창 모양은 globeview.css (Globe View 2D 앱과 같은 디자인)에 있습니다.
+   주의: 여기에 "* { padding: 0 }" 같은 규칙을 레이어 밖에 두면 Tailwind의 여백(p-3 등)을 모두 덮어써서
+   버튼과 창이 찌그러져 보입니다. 초기화 규칙이 필요하면 @layer base 안에 넣으세요. */
+
+/* ── 3D 지구본 영역 ── */
+/* 지구본 위의 도시 이름·태풍 아이콘이 버튼·창보다 위로 올라오지 않도록 지구본 영역을 한 층으로 묶습니다 */
+#map {
+  z-index: 0;
+  isolation: isolate;
 }
 
-html, body, #root {
+.globe-wrap {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, #0d1b3e 0%, #050d1a 100%);
+}
+
+/* 자료를 받는 중일 때 아래 가운데에 뜨는 안내 */
+.globe-loading {
+  position: absolute;
+  left: 50%;
+  bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 16px;
+  background-color: var(--panel-bg-light);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: var(--edge);
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 화면 가운데 십자선 */
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  pointer-events: none;
+  background:
+    linear-gradient(#fff, #fff) center / 2px 100% no-repeat,
+    linear-gradient(#fff, #fff) center / 100% 2px no-repeat;
+  filter: drop-shadow(0 0 1px #000);
+}
+
+/* 날씨 창: 지금 날씨 (Globe View 창 모양에 맞춰 추가) */
+.panel.weather .now {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 2px 0 14px;
+}
+.panel.weather .now-icon svg {
+  display: block;
+  width: 40px;
+  height: 40px;
+}
+.panel.weather .now-temp {
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+.panel.weather .now-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.panel.weather .now-text span {
+  color: var(--text-dim);
+}
+.panel.weather .now-details {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px 6px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+}
+.panel.weather .now-details dt {
+  grid-row: 1;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.panel.weather .now-details dd {
+  grid-row: 2;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* 태풍 아이콘 (지구본 위 HTML 요소) — 반시계 방향으로 돌아갑니다 (남반구는 시계 방향) */
+.storm-icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.5));
+}
+/* 바깥 요소의 transform은 지구본 라이브러리가 위치 지정에 쓰므로, 회전은 안쪽 svg에만 줍니다 */
+.storm-icon svg {
+  display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  animation: storm-spin 6s linear infinite reverse;
 }
-
-body {
-  background: #0f172a;
-  color: white;
+.storm-icon.south svg {
+  animation-direction: normal;
 }
-
-/* 스크롤바 숨김 유틸리티 */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.storm-icon path {
+  fill: var(--storm-color, #ff8a00);
+  stroke: #fff;
+  stroke-width: 1.6;
 }
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.storm-icon circle {
+  fill: #fff;
 }
-
-/* 지구본 캔버스가 전체 화면을 채우도록 */
-#root canvas {
-  display: block;
+.storm-icon.rank3 path {
+  fill: #ff3b30;
+}
+@keyframes storm-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
